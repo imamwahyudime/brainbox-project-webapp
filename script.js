@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const importDataButton = document.getElementById('import-data-button');
     const importFileInput = document.getElementById('import-file-input');
     const aboutButton = document.getElementById('about-button');
+    const userGreetingEl = document.getElementById('user-greeting');
+    const logoutButton = document.getElementById('logout-button');
+    const showAllTasksButton = document.getElementById('show-all-tasks-button');
 
     // Left Panel: Tasks & Projects
     const projectFilterSelect = document.getElementById('project-filter-select');
@@ -14,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tasksSectionHeader = document.getElementById('tasks-section-header');
     const newTaskInput = document.getElementById('new-task-input');
     const addTaskButton = document.getElementById('add-task-button');
-    const taskListEl = document.getElementById('task-list'); // Main list for project tasks
+    const taskListEl = document.getElementById('task-list');
 
     // Right Panel: Schedule
     const scheduleTimelineEl = document.getElementById('schedule-timeline');
@@ -27,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalDurationInput = document.getElementById('modal-duration');
     const modalScheduleDescriptionInput = document.getElementById('modal-schedule-description');
     const modalSaveTaskButton = document.getElementById('modal-save-task-button');
-    const modalDeleteTaskButton = document.getElementById('modal-delete-task-button'); // Consider renaming/repurposing
+    const modalDeleteTaskButton = document.getElementById('modal-delete-task-button');
     const modalTaskIdInput = document.getElementById('modal-task-id');
 
     // About Modal
@@ -48,88 +51,171 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTaskRecycleBinListEl = document.getElementById('modal-task-recycle-bin-list');
     const modalTaskRecycleBinMessage = document.getElementById('modal-task-recycle-bin-message');
 
+    // All Tasks Modal
+    const allTasksModal = document.getElementById('all-tasks-modal');
+    const allTasksListContainerEl = document.getElementById('all-tasks-list-container');
+
+
     // General Modal Close Buttons
     const allCloseButtons = document.querySelectorAll('.modal .close-button');
+    
+    const authBlocker = document.getElementById('auth-blocker');
+    const appContentWrapper = document.getElementById('app-content-wrapper');
+
 
     // --- State Variables ---
     let projects = [];
-    let tasks = []; // Unified task objects
+    let tasks = [];
     let appSettings = {
         theme: 'light',
-        currentProjectId: null, // Will be set to UNCATEGORIZED_PROJECT_ID initially
-        nextProjectIdNum: 1, // For generating numeric part of project IDs
-        nextTaskIdNum: 1,    // For generating numeric part of task IDs
+        currentProjectId: null,
+        nextProjectIdNum: 1, 
+        nextTaskIdNum: 1,    
     };
     let draggedTaskId = null;
+    let currentUser = null;
 
 
     // --- Constants ---
     const UNCATEGORIZED_PROJECT_ID = 'proj_0';
     const UNCATEGORIZED_PROJECT_NAME = "General Tasks";
-    const LOCAL_STORAGE_KEY = 'brainboxProCombinedData_v1';
+
+    // --- API Helper ---
+    async function apiRequest(action, data = {}, method = 'POST') {
+        let url = '';
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin' 
+        };
+
+        if (method === 'POST' || method === 'PUT') {
+            options.body = JSON.stringify(data);
+            url = `data_handler.php?action=${action}`;
+            if (action === 'logout' || action === 'check_auth') { 
+                url = `auth.php?action=${action}`;
+            }
+        } else if (method === 'GET') {
+            const queryParams = new URLSearchParams(data).toString();
+            url = `data_handler.php?action=${action}${queryParams ? '&' + queryParams : ''}`;
+            if (action === 'check_auth') { 
+                 url = `auth.php?action=${action}${queryParams ? '&' + queryParams : ''}`;
+            }
+        }
+
+
+        try {
+            console.log(`API Request: ${method} to ${url}`, method === 'POST' || method === 'PUT' ? data : {});
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                let errorResult = { message: `Server error: ${response.status} ${response.statusText}` };
+                try {
+                    errorResult = await response.json();
+                } catch (e) { /* Ignore if response isn't JSON */ }
+                console.error(`API Error (${action} to ${url}): ${response.status}`, errorResult.message || response.statusText, errorResult);
+                throw new Error(errorResult.message || `Server returned status ${response.status}`);
+            }
+            const responseData = await response.json();
+            console.log(`API Response for ${action}:`, responseData);
+            if (responseData.debug_log) {
+                console.warn(`PHP Debug Log for ${action} (from apiRequest):`, responseData.debug_log);
+            }
+            if (responseData.raw_php_output && typeof responseData.raw_php_output === 'string' && responseData.raw_php_output.trim() !== "") {
+                console.warn(`Raw PHP Output for ${action} (from apiRequest):`, responseData.raw_php_output);
+            }
+            return responseData;
+        } catch (error) {
+            console.error(`Workspace error for ${action} to ${url}:`, error);
+            if (action !== 'save_app_settings' && action !== 'check_auth') { 
+                displayFlashMessage(document.body, `Error communicating with server: ${error.message}`, 'error', 5000);
+            }
+            throw error; 
+        }
+    }
 
     // --- Helper Functions ---
-    function generateId(prefix, num) {
-        return `${prefix}_${num}`;
-    }
-
-    function saveState() {
+    async function syncAppSettings() {
+        if (!currentUser) return; 
         try {
-            const dataToSave = {
-                projects: projects,
-                tasks: tasks.map(({ isOverlapping, ...rest }) => rest), // Remove transient properties like isOverlapping
-                appSettings: appSettings
+            const settingsToSync = {
+                theme: appSettings.theme,
+                currentProjectId: appSettings.currentProjectId,
             };
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
-            console.log("State saved:", dataToSave);
+            await apiRequest('save_app_settings', { settings: settingsToSync });
+            console.log("App settings synced with server.");
         } catch (error) {
-            console.error("Error saving state to localStorage:", error);
-            displayFlashMessage(document.body, "Could not save data. Local storage might be full or disabled.", 'error', 5000); // Use a general message display
+            // error already logged by apiRequest
         }
     }
 
-    function loadState() {
+
+    async function loadDataFromServer() {
         try {
-            const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (storedData) {
-                const loadedData = JSON.parse(storedData);
-                projects = loadedData.projects || [];
-                tasks = loadedData.tasks || [];
-                // Merge loaded settings with defaults to ensure new settings are picked up
-                appSettings = { ...appSettings, ...(loadedData.appSettings || {}) };
+            console.log("Attempting to load all data from server...");
+            const serverData = await apiRequest('get_all_data', {}, 'GET');
+            
+            console.log('Full serverData received in loadDataFromServer:', serverData);
+            console.log('Directly checking serverData.tasks in loadDataFromServer:', serverData.tasks);
 
-                // Ensure ID counters are at least one greater than the max existing ID
-                const maxProjNum = projects.reduce((max, p) => Math.max(max, parseInt(p.id.split('_')[1]) || 0), 0);
-                appSettings.nextProjectIdNum = Math.max(appSettings.nextProjectIdNum, maxProjNum + 1);
 
-                const maxTaskNum = tasks.reduce((max, t) => Math.max(max, parseInt(t.id.split('_')[1]) || 0), 0);
-                appSettings.nextTaskIdNum = Math.max(appSettings.nextTaskIdNum, maxTaskNum + 1);
+            if (serverData.success) {
+                projects = serverData.projects || [];
+                tasks = serverData.tasks || []; 
+                
+                console.log('Local `tasks` array initialized in loadDataFromServer:', JSON.parse(JSON.stringify(tasks)));
 
-                console.log("State loaded.");
+
+                const serverSettings = serverData.appSettings || {};
+                const localTheme = localStorage.getItem('brainboxProTheme');
+
+                appSettings = {
+                    theme: localTheme || serverSettings.theme || 'light',
+                    currentProjectId: serverSettings.current_project_id || serverSettings.currentProjectId || null, 
+                    nextProjectIdNum: 1, 
+                    nextTaskIdNum: 1,    
+                };
+                
+                applyTheme(appSettings.theme); 
+                themeSelect.value = appSettings.theme;
+                
+                console.log("Data processed by client.", {projects, tasks, appSettings});
+                await ensureUncategorizedProject(); 
+                initializeAppUI(); 
+            } else {
+                let errorMessage = serverData.message || "Failed to load data from server (serverData.success was false).";
+                if(serverData.debug_log && serverData.debug_log.length > 0){
+                    errorMessage += " Server debug: " + serverData.debug_log.join("; ");
+                }
+                throw new Error(errorMessage);
             }
-        } catch (error) {
-            console.error("Error loading state from localStorage:", error);
-            projects = [];
-            tasks = [];
-            // Reset to default settings on error
-            appSettings = { theme: 'light', currentProjectId: null, nextProjectIdNum: 1, nextTaskIdNum: 1 };
-            displayFlashMessage(document.body, "Could not load saved data. It might be corrupted. Starting fresh.", 'error', 5000);
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } catch (error) { 
+            displayFlashMessage(document.body, `Could not load data: ${error.message}`, 'error', 7000);
+            authBlocker.style.display = 'flex';
+            authBlocker.innerHTML = `<div style="background-color: var(--bg-modal); color: var(--text-primary); padding: 30px; border-radius: 8px; display: inline-block; box-shadow: 0 5px 15px var(--shadow-primary);"><h3 style="margin-bottom: 15px;">Loading Error</h3><p>Could not load application data. Please <a href="login.html" style="color: var(--accent-primary); font-weight: bold;">login again</a> or contact support if the issue persists.</p></div>`;
+            appContentWrapper.style.display = 'none';
         }
     }
+
 
     function escapeHTML(str) {
+        if (str === null || typeof str === 'undefined') return '';
+        if (typeof str !== 'string') str = String(str);
         const div = document.createElement('div');
         div.appendChild(document.createTextNode(str));
         return div.innerHTML;
     }
 
-    // Simple flash message - you might want a more robust solution
     function displayFlashMessage(parentElement, message, type = 'success', duration = 4000) {
+        const existingMessages = document.querySelectorAll('.flash-message');
+        for (let em of existingMessages) {
+            if (em.textContent === message && em.classList.contains(type)) return; 
+        }
+
         const messageEl = document.createElement('div');
         messageEl.className = `flash-message ${type}`;
         messageEl.textContent = message;
-        // Style this flash message for visibility
         messageEl.style.position = 'fixed';
         messageEl.style.top = '20px';
         messageEl.style.left = '50%';
@@ -140,6 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
         messageEl.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
         messageEl.style.backgroundColor = type === 'error' ? 'var(--accent-delete)' : 'var(--accent-recover)';
         messageEl.style.color = 'white';
+        messageEl.style.textAlign = 'center';
+
 
         (parentElement || document.body).appendChild(messageEl);
         setTimeout(() => {
@@ -147,19 +235,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }, duration);
     }
     
-    // --- Theming Functions ---
     function applyTheme(themeName) {
         document.body.dataset.theme = themeName;
-        appSettings.theme = themeName;
-        // No saveState() here, it will be saved with other appSettings changes or explicitly
+        localStorage.setItem('brainboxProTheme', themeName);
     }
 
-    function handleThemeChange(event) {
-        applyTheme(event.target.value);
-        saveState(); // Save state when theme changes
+    async function handleThemeChange(event) {
+        const newTheme = event.target.value;
+        applyTheme(newTheme);
+        appSettings.theme = newTheme; 
+        await syncAppSettings();
     }
 
-    // --- Modal Handling ---
     function openModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) modal.style.display = 'block';
@@ -177,11 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (modalId) closeModal(modalId);
             });
         });
-        // Close About modal specifically with its internal button
         if (aboutModalCloseButtonInternal) {
             aboutModalCloseButtonInternal.addEventListener('click', () => closeModal('about-modal'));
         }
-         // Close modal on outside click
         window.addEventListener('click', (event) => {
             if (event.target.classList.contains('modal')) {
                 closeModal(event.target.id);
@@ -189,42 +274,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Project Management ---
-    function ensureUncategorizedProject() {
+    async function ensureUncategorizedProject() { 
         const uncatProject = projects.find(p => p.id === UNCATEGORIZED_PROJECT_ID);
         if (!uncatProject) {
-            projects.unshift({ // Add to the beginning
-                id: UNCATEGORIZED_PROJECT_ID,
-                name: UNCATEGORIZED_PROJECT_NAME,
-                status: 'active',
-                createdAt: new Date().toISOString(),
-                isDefault: true // Mark as default, cannot be permanently deleted
-            });
-            // No need to increment nextProjectIdNum for the default one if it's fixed.
+            console.warn(`${UNCATEGORIZED_PROJECT_NAME} (${UNCATEGORIZED_PROJECT_ID}) not found after server load. The server should provide this by default. This might indicate an issue.`);
         }
-        if (!appSettings.currentProjectId || !projects.some(p=>p.id === appSettings.currentProjectId && p.status === 'active')) {
-            appSettings.currentProjectId = UNCATEGORIZED_PROJECT_ID;
+
+        const currentProjectIsValid = appSettings.currentProjectId && projects.some(p => p.id === appSettings.currentProjectId && p.status === 'active');
+
+        if (!currentProjectIsValid) {
+            const defaultProj = projects.find(p => p.id === UNCATEGORIZED_PROJECT_ID && p.status === 'active');
+            const firstActiveProj = projects.find(p => p.status === 'active');
+            
+            const oldCurrentProjectId = appSettings.currentProjectId;
+            appSettings.currentProjectId = defaultProj ? defaultProj.id : (firstActiveProj ? firstActiveProj.id : null);
+            
+            if (oldCurrentProjectId !== appSettings.currentProjectId) {
+                console.log("Updated appSettings.currentProjectId in ensureUncategorizedProject from", oldCurrentProjectId, "to:", appSettings.currentProjectId);
+                await syncAppSettings(); 
+            }
         }
     }
+
 
     function renderProjectFilterDropdown() {
         projectFilterSelect.innerHTML = '';
         const activeProjects = projects.filter(p => p.status === 'active');
+        console.log("Rendering project filter dropdown. Active projects:", activeProjects, "Current appSettings.currentProjectId:", appSettings.currentProjectId);
         
-        activeProjects.forEach(project => {
+        if (activeProjects.length === 0) {
             const option = document.createElement('option');
-            option.value = project.id;
-            option.textContent = escapeHTML(project.name);
-            if (project.id === appSettings.currentProjectId) {
-                option.selected = true;
-            }
+            option.value = "";
+            option.textContent = "No active projects";
+            option.disabled = true;
             projectFilterSelect.appendChild(option);
-        });
-        if (activeProjects.length === 0 && appSettings.currentProjectId !== UNCATEGORIZED_PROJECT_ID) {
-            // This case should ideally not happen if ensureUncategorizedProject works correctly
-            // and currentProjectId is reset if its project becomes inactive.
-             appSettings.currentProjectId = UNCATEGORIZED_PROJECT_ID; // Fallback
+            if (appSettings.currentProjectId !== null) { 
+                appSettings.currentProjectId = null;
+            }
+        } else {
+            activeProjects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.id;
+                option.textContent = escapeHTML(project.name);
+                projectFilterSelect.appendChild(option);
+            });
+
+            let currentSelectedValid = activeProjects.some(p => p.id === appSettings.currentProjectId);
+            if (appSettings.currentProjectId && currentSelectedValid) {
+                projectFilterSelect.value = appSettings.currentProjectId;
+            } else if (activeProjects.length > 0) {
+                const newCurrent = activeProjects.find(p => p.id === UNCATEGORIZED_PROJECT_ID && p.status === 'active') || activeProjects[0];
+                if (newCurrent) { 
+                    appSettings.currentProjectId = newCurrent.id;
+                    projectFilterSelect.value = appSettings.currentProjectId;
+                } else {
+                    appSettings.currentProjectId = null; 
+                }
+            } else { 
+                appSettings.currentProjectId = null; 
+            }
         }
+        console.log("After renderProjectFilterDropdown, appSettings.currentProjectId:", appSettings.currentProjectId, "Dropdown value:", projectFilterSelect.value);
         updateTasksSectionHeader();
     }
     
@@ -233,15 +343,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentProject) {
             tasksSectionHeader.textContent = `Tasks for "${escapeHTML(currentProject.name)}"`;
         } else {
-            tasksSectionHeader.textContent = `Tasks`; // Fallback
+            tasksSectionHeader.textContent = `Tasks (No project selected)`;
         }
     }
 
-    function handleProjectFilterChange() {
+    async function handleProjectFilterChange() {
         const newProjectId = projectFilterSelect.value;
-        if (newProjectId && newProjectId !== appSettings.currentProjectId) {
-            appSettings.currentProjectId = newProjectId;
-            saveState(); // Save current project change
+        const oldProjectId = appSettings.currentProjectId;
+        console.log("Project filter changed. New selected project ID:", newProjectId, "Old currentProjectId:", oldProjectId);
+        
+        if (newProjectId !== oldProjectId) { 
+            appSettings.currentProjectId = newProjectId || null; 
+            await syncAppSettings();
+            renderTasksForCurrentProject();
+            updateTasksSectionHeader();
+        } else { 
             renderTasksForCurrentProject();
             updateTasksSectionHeader();
         }
@@ -257,21 +373,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderModalProjectList() {
         modalProjectListEl.innerHTML = '';
-        projects.filter(p => p.status === 'active' && !p.isDefault).forEach(project => { // Exclude default from deletion/editing here
+        projects.filter(p => p.status === 'active' && p.id !== UNCATEGORIZED_PROJECT_ID).forEach(project => {
             const li = document.createElement('li');
             li.dataset.projectId = project.id;
-            
             const nameSpan = document.createElement('span');
             nameSpan.className = 'item-name';
             nameSpan.textContent = escapeHTML(project.name);
             li.appendChild(nameSpan);
-
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'item-actions';
-
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = 'Delete';
-            deleteBtn.classList.add('delete-button'); // Existing Brainbox class for delete
+            deleteBtn.classList.add('delete-button');
             deleteBtn.title = "Move to Recycle Bin";
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -291,8 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderModalDeletedProjectList() {
         modalDeletedProjectListEl.innerHTML = '';
         const deletedProjs = projects.filter(p => p.status === 'deleted');
-        deletedProjs.sort((a,b) => new Date(b.deletedAt) - new Date(a.deletedAt));
-
+        deletedProjs.sort((a,b) => new Date(b.deletedAt || b.deleted_at || 0) - new Date(a.deletedAt || a.deleted_at || 0));
         deletedProjs.forEach(project => {
             const li = document.createElement('li');
             li.dataset.projectId = project.id;
@@ -300,17 +412,15 @@ document.addEventListener('DOMContentLoaded', () => {
             nameSpan.className = 'item-name';
             nameSpan.textContent = escapeHTML(project.name);
             li.appendChild(nameSpan);
-
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'item-actions';
-
             const recoverBtn = document.createElement('button');
             recoverBtn.textContent = 'Recover';
             recoverBtn.classList.add('recover-btn');
             recoverBtn.addEventListener('click', (e) => { e.stopPropagation(); recoverProject(project.id); });
             actionsDiv.appendChild(recoverBtn);
 
-            if (!project.isDefault) { // Default project cannot be permanently deleted
+            if (project.id !== UNCATEGORIZED_PROJECT_ID) { 
                 const permDeleteBtn = document.createElement('button');
                 permDeleteBtn.textContent = 'Delete Permanently';
                 permDeleteBtn.classList.add('permanent-delete-btn');
@@ -332,15 +442,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function displayModalMessage(modalMessageEl, text, type = 'success') {
+        if (!modalMessageEl) return;
         modalMessageEl.textContent = text;
-        modalMessageEl.className = `message ${type}`; // Assumes 'success' or 'error' class
+        modalMessageEl.className = `message ${type}`;
         setTimeout(() => {
             modalMessageEl.textContent = '';
             modalMessageEl.className = 'message';
         }, 4000);
     }
 
-    newProjectForm.addEventListener('submit', (e) => {
+    newProjectForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const projectName = newProjectNameInput.value.trim();
         if (projectName) {
@@ -348,176 +459,221 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayModalMessage(projectFormMessage, `Project name "${escapeHTML(projectName)}" already exists.`, 'error');
                 return;
             }
-            addProject(projectName);
+            await addProject(projectName); 
             newProjectNameInput.value = '';
-            displayModalMessage(projectFormMessage, `Project "${escapeHTML(projectName)}" added.`, 'success');
         } else {
             displayModalMessage(projectFormMessage, 'Project name cannot be empty.', 'error');
         }
     });
 
-    function addProject(name) {
-        const newProjId = generateId('proj', appSettings.nextProjectIdNum++);
-        const newProject = {
-            id: newProjId,
+    async function addProject(name) {
+        const newProjectData = { 
             name: name,
             status: 'active',
             createdAt: new Date().toISOString()
         };
-        projects.push(newProject);
-        renderModalProjectList();
-        renderProjectFilterDropdown(); // Update dropdown
-        // Auto-select the new project
-        projectFilterSelect.value = newProjId;
-        handleProjectFilterChange();
-        saveState();
+
+        try {
+            const result = await apiRequest('add_project', { project: newProjectData });
+            if (result.success && result.project) {
+                projects.push(result.project);
+                
+                renderModalProjectList();
+                renderProjectFilterDropdown(); 
+                projectFilterSelect.value = result.project.id; 
+                await handleProjectFilterChange(); 
+                displayModalMessage(projectFormMessage, `Project "${escapeHTML(result.project.name)}" added.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to add project on server.");
+            }
+        } catch (error) {
+            displayModalMessage(projectFormMessage, `Error adding project: ${error.message}`, 'error');
+        }
     }
 
-    function softDeleteProject(projectId) {
-        const projectIndex = projects.findIndex(p => p.id === projectId);
-        if (projectIndex === -1 || projects[projectIndex].isDefault) {
+    async function softDeleteProject(projectId) {
+        const project = projects.find(p => p.id === projectId);
+        if (!project || project.id === UNCATEGORIZED_PROJECT_ID) { 
              displayModalMessage(modalDeletedProjectMessage, "Cannot delete default project or project not found.", 'error');
              return;
         }
 
-        projects[projectIndex].status = 'deleted';
-        projects[projectIndex].deletedAt = new Date().toISOString();
+        try {
+            const result = await apiRequest('soft_delete_project', { projectId });
+            if (result.success) {
+                const projectIndex = projects.findIndex(p => p.id === projectId);
+                if (projectIndex !== -1) {
+                    projects[projectIndex].status = 'deleted';
+                    projects[projectIndex].deletedAt = result.deletedAt || new Date().toISOString(); 
+                    projects[projectIndex].deleted_at = result.deletedAt || new Date().toISOString(); 
+                }
 
-        // Soft delete associated tasks and unschedule them
-        tasks = tasks.map(task => {
-            if (task.projectId === projectId && task.status !== 'deleted') { // Don't override if already deleted individually
-                return {
-                    ...task,
-                    status: 'deleted',
-                    isCompleted: false, // Reset completion
-                    isScheduled: false, // Unschedule
-                    startTime: null,
-                    duration: null,
-                    deletedReason: 'project_soft_deleted',
-                    deletedAt: new Date().toISOString()
-                };
+                tasks = tasks.map(task => {
+                    if (task.project_id === projectId && task.status !== 'deleted') { // Use task.project_id
+                        return { 
+                            ...task, 
+                            status: 'deleted', 
+                            isScheduled: false, 
+                            deletedReason: 'project_soft_deleted', 
+                            deletedAt: result.deletedAt || new Date().toISOString(),
+                            deleted_at: result.deletedAt || new Date().toISOString()
+                        };
+                    }
+                    return task;
+                });
+
+                if (appSettings.currentProjectId === projectId) {
+                    renderProjectFilterDropdown(); 
+                    await handleProjectFilterChange(); 
+                } else {
+                    renderProjectFilterDropdown(); 
+                }
+                
+                renderModalProjectList();
+                renderModalDeletedProjectList();
+                renderScheduleTimeline(); 
+                displayModalMessage(modalDeletedProjectMessage, `Project "${escapeHTML(project.name)}" moved to recycle bin.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to soft delete project.");
             }
-            return task;
-        });
-
-        // If current project is deleted, switch to Uncategorized
-        if (appSettings.currentProjectId === projectId) {
-            appSettings.currentProjectId = UNCATEGORIZED_PROJECT_ID;
-            renderProjectFilterDropdown(); // This will also trigger task list render for new project
-            renderTasksForCurrentProject();
-        } else {
-            renderProjectFilterDropdown(); // Just update dropdown
+        } catch (error) {
+            displayModalMessage(modalDeletedProjectMessage, `Error soft deleting project: ${error.message}`, 'error');
         }
-        
-        renderModalProjectList();
-        renderModalDeletedProjectList();
-        renderScheduleTimeline(); // Update timeline as tasks are unscheduled/deleted
-        saveState();
-        displayModalMessage(modalDeletedProjectMessage, `Project "${escapeHTML(projects[projectIndex].name)}" moved to recycle bin.`, 'success');
     }
 
-    function recoverProject(projectId) {
-        const projectIndex = projects.findIndex(p => p.id === projectId);
-        if (projectIndex === -1) return;
+    async function recoverProject(projectId) {
+         const projectToRecover = projects.find(p => p.id === projectId && p.status === 'deleted');
+         if (!projectToRecover) {
+            displayModalMessage(modalDeletedProjectMessage, "Project not found in bin or not deleted.", 'error');
+            return;
+         }
 
-        projects[projectIndex].status = 'active';
-        delete projects[projectIndex].deletedAt;
+        try {
+            const result = await apiRequest('recover_project', { projectId });
+            if (result.success && result.recoveredProject && result.recoveredTasks) {
+                const projectIndex = projects.findIndex(p => p.id === projectId);
+                if(projectIndex !== -1) projects[projectIndex] = result.recoveredProject;
+                else projects.push(result.recoveredProject);
 
-        // Recover tasks that were deleted because the project was deleted
-        tasks = tasks.map(task => {
-            if (task.projectId === projectId && task.deletedReason === 'project_soft_deleted') {
-                return { ...task, status: 'active', deletedReason: undefined, deletedAt: undefined };
+                result.recoveredTasks.forEach(recoveredTask => {
+                    const taskIndex = tasks.findIndex(t => t.id === recoveredTask.id);
+                    if (taskIndex !== -1) {
+                        tasks[taskIndex] = recoveredTask;
+                    } else {
+                        tasks.push(recoveredTask); 
+                    }
+                });
+                
+                renderModalProjectList();
+                renderModalDeletedProjectList();
+                renderProjectFilterDropdown(); 
+                
+                const currentProjIsInvalid = !appSettings.currentProjectId || 
+                                            appSettings.currentProjectId === UNCATEGORIZED_PROJECT_ID ||
+                                            appSettings.currentProjectId === projectId;
+
+                if(currentProjIsInvalid && result.recoveredProject.status === 'active'){
+                    projectFilterSelect.value = projectId; 
+                }
+                await handleProjectFilterChange(); 
+
+                renderScheduleTimeline(); 
+                displayModalMessage(modalDeletedProjectMessage, `Project "${escapeHTML(result.recoveredProject.name)}" recovered.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to recover project.");
             }
-            return task;
-        });
-        
-        renderModalProjectList();
-        renderModalDeletedProjectList();
-        renderProjectFilterDropdown();
-        // If no project is selected or current was just recovered, select it
-        if(appSettings.currentProjectId === UNCATEGORIZED_PROJECT_ID || appSettings.currentProjectId === projectId){
-            appSettings.currentProjectId = projectId;
-            projectFilterSelect.value = projectId;
-            handleProjectFilterChange();
+        } catch (error) {
+             displayModalMessage(modalDeletedProjectMessage, `Error recovering project: ${error.message}`, 'error');
         }
-        saveState();
-        displayModalMessage(modalDeletedProjectMessage, `Project "${escapeHTML(projects[projectIndex].name)}" recovered.`, 'success');
     }
 
-    function permanentlyDeleteProject(projectId) {
+    async function permanentlyDeleteProject(projectId) {
         const project = projects.find(p => p.id === projectId);
-        if (!project || project.isDefault) {
+        if (!project || project.id === UNCATEGORIZED_PROJECT_ID) { 
             displayModalMessage(modalDeletedProjectMessage, "Cannot delete default project or project not found.", 'error');
             return;
         }
+        const projectName = project.name; 
+        try {
+            const result = await apiRequest('permanently_delete_project', { projectId });
+            if (result.success) {
+                projects = projects.filter(p => p.id !== projectId);
+                tasks = tasks.filter(task => task.project_id !== projectId); // Use task.project_id
 
-        const projectName = project.name;
-        projects = projects.filter(p => p.id !== projectId);
-        // Permanently delete all tasks associated with this project
-        tasks = tasks.filter(task => task.projectId !== projectId);
-
-        if (appSettings.currentProjectId === projectId) { // If current project was deleted
-            appSettings.currentProjectId = UNCATEGORIZED_PROJECT_ID;
-            projectFilterSelect.value = UNCATEGORIZED_PROJECT_ID; // Ensure dropdown reflects this
-            renderTasksForCurrentProject(); // Render tasks for the new current project
+                if (appSettings.currentProjectId === projectId) {
+                    renderProjectFilterDropdown(); 
+                    await handleProjectFilterChange(); 
+                } else {
+                     renderProjectFilterDropdown(); 
+                }
+                
+                renderModalDeletedProjectList();
+                renderScheduleTimeline(); 
+                displayModalMessage(modalDeletedProjectMessage, `Project "${escapeHTML(projectName)}" and its tasks permanently deleted.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to permanently delete project.");
+            }
+        } catch (error) {
+            displayModalMessage(modalDeletedProjectMessage, `Error deleting project: ${error.message}`, 'error');
         }
-        
-        renderModalDeletedProjectList();
-        renderProjectFilterDropdown(); // Update dropdown as a project is gone
-        renderScheduleTimeline(); // Update timeline as tasks might be gone
-        saveState();
-        displayModalMessage(modalDeletedProjectMessage, `Project "${escapeHTML(projectName)}" and its tasks permanently deleted.`, 'success');
     }
 
-    // --- Task Management (Unified) ---
     function renderTasksForCurrentProject() {
-        taskListEl.innerHTML = '';
+        taskListEl.innerHTML = ''; 
+
+        console.log('Rendering tasks. appSettings.currentProjectId:', appSettings.currentProjectId, 'All tasks local (before filter):', JSON.parse(JSON.stringify(tasks)));
+        
         if (!appSettings.currentProjectId) {
-            taskListEl.innerHTML = '<p>Select a project to see tasks.</p>';
+            taskListEl.innerHTML = `<p>Select a project or create one to add tasks.</p>`;
             return;
         }
-        const currentProjectTasks = tasks.filter(task => task.projectId === appSettings.currentProjectId && task.status === 'active');
-        currentProjectTasks.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+        // --- THIS IS THE CORRECTED LINE ---
+        const currentProjectTasks = tasks.filter(task => {
+            // Add individual log for detailed checking if needed
+            // console.log(`Comparing task.project_id ("${task.project_id}") with appSettings.currentProjectId ("${appSettings.currentProjectId}") for task ID ${task.id}`);
+            return task.project_id === appSettings.currentProjectId && task.status === 'active';
+        });
+        // --- END OF CORRECTION ---
+        
+        console.log('Filtered tasks for current project (' + appSettings.currentProjectId + '):', JSON.parse(JSON.stringify(currentProjectTasks)));
+
+        currentProjectTasks.sort((a,b) => new Date(a.createdAt || a.created_at || 0) - new Date(b.createdAt || b.created_at || 0));
 
         if (currentProjectTasks.length === 0) {
             taskListEl.innerHTML = '<p>No active tasks in this project. Add one!</p>';
         } else {
             currentProjectTasks.forEach(task => {
                 const li = document.createElement('li');
-                li.id = `task-${task.id}`; // For drag and drop reference
+                li.id = `task-${task.id}`;
                 li.dataset.taskId = task.id;
-                if (task.isCompleted) li.classList.add('completed'); // Should not happen for active tasks, but defensive
-                if (task.isScheduled) li.classList.add('scheduled-in-list'); // Optional: for styling
-
+                // Ensure task.isScheduled is checked correctly, server might send is_scheduled
+                const isScheduled = task.isScheduled || task.is_scheduled;
+                if (isScheduled) li.classList.add('scheduled-in-list');
                 li.setAttribute('draggable', 'true');
-
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.checked = task.isCompleted;
+                checkbox.checked = false; 
+                checkbox.title = "Mark task as complete";
                 checkbox.addEventListener('change', () => toggleTaskComplete(task.id));
                 li.appendChild(checkbox);
-
                 const textSpan = document.createElement('span');
                 textSpan.className = 'task-text-content';
                 textSpan.textContent = escapeHTML(task.text);
                 li.appendChild(textSpan);
-
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'task-actions';
-
                 const scheduleBtn = document.createElement('button');
-                scheduleBtn.textContent = task.isScheduled ? 'Edit Schedule' : 'Schedule';
-                scheduleBtn.title = task.isScheduled ? 'Edit schedule details' : 'Schedule this task';
+                scheduleBtn.textContent = isScheduled ? 'Edit Schedule' : 'Schedule';
+                scheduleBtn.title = isScheduled ? 'Edit schedule details' : 'Schedule this task';
                 scheduleBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    openScheduleModal(task.id, task.isScheduled);
+                    openScheduleModal(task.id, isScheduled);
                 });
                 actionsDiv.appendChild(scheduleBtn);
-
                 const deleteTaskBtn = document.createElement('button');
-                deleteTaskBtn.innerHTML = '&#128465;'; // Trash can icon
+                deleteTaskBtn.innerHTML = '&#128465;'; 
                 deleteTaskBtn.title = "Move task to recycle bin";
-                deleteTaskBtn.classList.add('delete-button'); // General delete button style
+                deleteTaskBtn.classList.add('delete-button');
                 deleteTaskBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (confirm(`Move task "${escapeHTML(task.text)}" to the task recycle bin?`)) {
@@ -531,78 +687,101 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleNewTaskSubmit() {
+    async function handleNewTaskSubmit() {
         const taskText = newTaskInput.value.trim();
         if (taskText === '') return;
         if (!appSettings.currentProjectId) {
-            displayFlashMessage(taskListEl.parentElement, "Please select a project first or manage projects to create one.", 'error');
+            displayFlashMessage(taskListEl.parentElement, "Please select a project first.", 'error');
             return;
         }
         
-        addTask(taskText, appSettings.currentProjectId);
+        await addTask(taskText, appSettings.currentProjectId); 
         newTaskInput.value = '';
         newTaskInput.focus();
     }
 
-    function addTask(text, projectId) {
-        const newTaskId = generateId('task', appSettings.nextTaskIdNum++);
-        const newTask = {
-            id: newTaskId,
-            projectId: projectId,
+    async function addTask(text, projectId) {
+        const newTaskData = { 
+            projectId: projectId, // This is correct, server expects `projectId` in the `task` object for adding
             text: text,
-            isCompleted: false,
-            status: 'active', // active, completed, deleted
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            isScheduled: false,
+            isScheduled: false, 
             startTime: null,
             duration: null,
             scheduleDescription: ''
         };
-        tasks.push(newTask);
-        renderTasksForCurrentProject();
-        saveState();
-    }
 
-    function toggleTaskComplete(taskId) {
-        const taskIndex = tasks.findIndex(t => t.id === taskId);
-        if (taskIndex === -1) return;
-
-        tasks[taskIndex].isCompleted = !tasks[taskIndex].isCompleted;
-        tasks[taskIndex].updatedAt = new Date().toISOString();
-
-        if (tasks[taskIndex].isCompleted) {
-            tasks[taskIndex].status = 'completed';
-            tasks[taskIndex].isScheduled = false; // Completed tasks are unscheduled
-            tasks[taskIndex].deletedAt = new Date().toISOString(); // Using deletedAt for recycle bin timestamp
-            tasks[taskIndex].deletedReason = 'task_completed';
-            displayFlashMessage(taskListEl.parentElement, `Task "${escapeHTML(tasks[taskIndex].text)}" marked complete & moved to bin.`, 'success');
-        } else { // Should not be possible if "completed" tasks are in bin, but for robustness
-            tasks[taskIndex].status = 'active';
-            delete tasks[taskIndex].deletedAt;
-            delete tasks[taskIndex].deletedReason;
+        try {
+            const result = await apiRequest('add_task', { task: newTaskData });
+            if (result.success && result.task) {
+                // Server response for task will have project_id (snake_case)
+                // Ensure client-side consistency if necessary, or handle both cases
+                // For now, assume result.task is directly usable as is from server
+                tasks.push(result.task); 
+                renderTasksForCurrentProject(); 
+            } else {
+                throw new Error(result.message || "Failed to add task on server.");
+            }
+        } catch (error) {
+            displayFlashMessage(taskListEl.parentElement, `Error adding task: ${error.message}`, 'error');
         }
-        
-        renderTasksForCurrentProject();
-        renderScheduleTimeline(); // Update timeline if task was scheduled
-        saveState();
     }
 
-    function softDeleteTask(taskId) {
-        const taskIndex = tasks.findIndex(t => t.id === taskId);
-        if (taskIndex === -1) return;
-        const task = tasks[taskIndex];
+    async function toggleTaskComplete(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
 
-        task.status = 'deleted';
-        task.isCompleted = false; // Ensure it's not marked completed if just deleted
-        task.isScheduled = false; // Unschedule
-        task.deletedAt = new Date().toISOString();
-        task.deletedReason = 'individual_deletion';
-        
-        renderTasksForCurrentProject();
-        renderScheduleTimeline(); // Update timeline
-        saveState();
-        displayFlashMessage(taskListEl.parentElement, `Task "${escapeHTML(task.text)}" moved to recycle bin.`, 'success');
+        const completedAt = new Date().toISOString();
+        const updateData = { 
+            taskId, 
+            status: 'completed', 
+            isScheduled: false,  
+            deletedAt: completedAt, 
+            deletedReason: 'task_completed'
+        };
+
+        try {
+            const result = await apiRequest('update_task_status', updateData);
+            if (result.success && result.updatedTask) {
+                const taskIndex = tasks.findIndex(t => t.id === taskId);
+                if (taskIndex !== -1) tasks[taskIndex] = result.updatedTask; 
+                else tasks.push(result.updatedTask); 
+                
+                displayFlashMessage(taskListEl.parentElement, `Task "${escapeHTML(task.text)}" marked complete & moved to bin.`, 'success');
+                renderTasksForCurrentProject(); 
+                renderScheduleTimeline();     
+            } else {
+                throw new Error(result.message || "Failed to update task status.");
+            }
+        } catch (error) {
+            displayFlashMessage(taskListEl.parentElement, `Error completing task: ${error.message}`, 'error');
+            renderTasksForCurrentProject(); 
+        }
+    }
+
+    async function softDeleteTask(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        try {
+            const result = await apiRequest('soft_delete_task', { 
+                taskId, 
+                deletedReason: 'individual_deletion' 
+            });
+
+            if (result.success && result.updatedTask) {
+                 const taskIndex = tasks.findIndex(t => t.id === taskId);
+                if (taskIndex !== -1) tasks[taskIndex] = result.updatedTask;
+                else tasks.push(result.updatedTask); 
+
+                renderTasksForCurrentProject();
+                renderScheduleTimeline(); 
+                displayFlashMessage(taskListEl.parentElement, `Task "${escapeHTML(task.text)}" moved to recycle bin.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to move task to recycle bin.");
+            }
+        } catch (error) {
+            displayFlashMessage(taskListEl.parentElement, `Error deleting task: ${error.message}`, 'error');
+        }
     }
     
     function openTaskRecycleBinModal() {
@@ -614,7 +793,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTaskRecycleBinList() {
         modalTaskRecycleBinListEl.innerHTML = '';
         const deletedAndCompletedTasks = tasks.filter(t => t.status === 'deleted' || t.status === 'completed');
-        deletedAndCompletedTasks.sort((a,b) => new Date(b.deletedAt || b.updatedAt) - new Date(a.deletedAt || a.updatedAt)); // Sort by deletion/completion time
+        deletedAndCompletedTasks.sort((a,b) => new Date(b.deletedAt || b.updatedAt || b.deleted_at || b.updated_at || 0) - new Date(a.deletedAt || a.updatedAt || a.deleted_at || a.updated_at || 0));
+
 
         if(deletedAndCompletedTasks.length === 0) {
             modalTaskRecycleBinListEl.innerHTML = '<p>Task recycle bin is empty.</p>';
@@ -632,25 +812,26 @@ document.addEventListener('DOMContentLoaded', () => {
             statusSpan.className = 'task-status-info';
             let statusText = task.status === 'completed' ? 'Completed' : 'Deleted';
             if (task.deletedReason === 'project_soft_deleted') statusText += ' (Project in Bin)';
-            const project = projects.find(p => p.id === task.projectId);
+            else if (task.deletedReason === 'individual_deletion') statusText += ' (User Deleted)';
+            else if (task.deletedReason === 'task_completed') statusText = 'Completed';
+
+
+            const project = projects.find(p => p.id === task.project_id); // Use task.project_id
             statusSpan.textContent = `(${statusText} from ${project ? escapeHTML(project.name) : 'Unknown Project'})`;
             li.appendChild(statusSpan);
 
-
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'item-actions';
-
             const recoverBtn = document.createElement('button');
             recoverBtn.textContent = 'Recover';
             recoverBtn.classList.add('recover-btn');
-            const parentProject = projects.find(p => p.id === task.projectId);
+            const parentProject = projects.find(p => p.id === task.project_id); // Use task.project_id
             if (!parentProject || parentProject.status !== 'active') {
                 recoverBtn.disabled = true;
                 recoverBtn.title = "Parent project is not active or has been deleted.";
             }
             recoverBtn.addEventListener('click', () => recoverTaskFromBin(task.id));
             actionsDiv.appendChild(recoverBtn);
-
             const permDeleteBtn = document.createElement('button');
             permDeleteBtn.textContent = 'Delete Permanently';
             permDeleteBtn.classList.add('permanent-delete-btn');
@@ -665,57 +846,73 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function recoverTaskFromBin(taskId) {
-        const taskIndex = tasks.findIndex(t => t.id === taskId);
-        if (taskIndex === -1) {
-             displayModalMessage(modalTaskRecycleBinMessage, 'Task not found.', 'error');
+    async function recoverTaskFromBin(taskId) {
+        const taskToRecover = tasks.find(t => t.id === taskId && (t.status === 'deleted' || t.status === 'completed'));
+        if (!taskToRecover) {
+             displayModalMessage(modalTaskRecycleBinMessage, 'Task not found in bin.', 'error');
              return;
         }
-        const taskToRecover = tasks[taskIndex];
-        const parentProject = projects.find(p => p.id === taskToRecover.projectId);
-
+        const parentProject = projects.find(p => p.id === taskToRecover.project_id); // Use task.project_id
         if (!parentProject || parentProject.status !== 'active') {
-            displayModalMessage(modalTaskRecycleBinMessage, 'Cannot recover: Parent project is deleted or not active.', 'error');
+            displayModalMessage(modalTaskRecycleBinMessage, 'Cannot recover: Parent project is deleted or not active. Please recover project first if needed.', 'error');
             return;
         }
 
-        taskToRecover.status = 'active';
-        taskToRecover.isCompleted = false; // Ensure not completed
-        delete taskToRecover.deletedAt;
-        delete taskToRecover.deletedReason;
-        taskToRecover.updatedAt = new Date().toISOString();
-        
-        renderTaskRecycleBinList();
-        renderTasksForCurrentProject(); // If recovered to current project
-        saveState();
-        displayModalMessage(modalTaskRecycleBinMessage, `Task "${escapeHTML(taskToRecover.text)}" recovered.`, 'success');
+        try {
+            const result = await apiRequest('recover_task', { taskId }); 
+            if (result.success && result.updatedTask) { 
+                const taskIndex = tasks.findIndex(t => t.id === taskId);
+                 if (taskIndex !== -1) tasks[taskIndex] = result.updatedTask;
+                 else tasks.push(result.updatedTask);
+
+
+                renderTaskRecycleBinList();
+                if (appSettings.currentProjectId === result.updatedTask.project_id) { // Use result.updatedTask.project_id
+                    renderTasksForCurrentProject();
+                }
+                renderScheduleTimeline(); 
+                displayModalMessage(modalTaskRecycleBinMessage, `Task "${escapeHTML(result.updatedTask.text)}" recovered.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to recover task.");
+            }
+        } catch (error) {
+            displayModalMessage(modalTaskRecycleBinMessage, `Error recovering task: ${error.message}`, 'error');
+        }
     }
 
-    function permanentlyDeleteTaskFromBin(taskId) {
-        const taskText = tasks.find(t=>t.id === taskId)?.text || "Task";
-        tasks = tasks.filter(t => t.id !== taskId);
-        renderTaskRecycleBinList();
-        saveState();
-        displayModalMessage(modalTaskRecycleBinMessage, `Task "${escapeHTML(taskText)}" permanently deleted.`, 'success');
+    async function permanentlyDeleteTaskFromBin(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return; 
+        const taskText = task.text; 
+
+        try {
+            const result = await apiRequest('permanently_delete_task', { taskId });
+            if (result.success) {
+                tasks = tasks.filter(t => t.id !== taskId); 
+                renderTaskRecycleBinList();
+                displayModalMessage(modalTaskRecycleBinMessage, `Task "${escapeHTML(taskText)}" permanently deleted.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to permanently delete task.");
+            }
+        } catch (error) {
+            displayModalMessage(modalTaskRecycleBinMessage, `Error deleting task: ${error.message}`, 'error');
+        }
     }
 
-
-    // --- Scheduling & Timeline Functions (Adapted from Brainbox) ---
-    // Time formatting functions (from Brainbox, ensure they are here or imported)
-    function formatTime(totalMinutes) { // HH:MM
+    function formatTime(totalMinutes) {
+        if (totalMinutes === null || isNaN(totalMinutes)) return "";
+        totalMinutes = Number(totalMinutes);
         if (totalMinutes >= 1440) totalMinutes %= 1440;
+        if (totalMinutes < 0) totalMinutes = 1440 + (totalMinutes % 1440); 
         const hours = Math.floor(totalMinutes / 60) % 24;
         const minutes = totalMinutes % 60;
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     }
-    function formatMinutesToHHMM(totalMinutes) { // For time input value
-        if (isNaN(totalMinutes)) return "";
-        const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-        const minutes = (totalMinutes % 60).toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
+    function formatMinutesToHHMM(totalMinutes) { 
+        return formatTime(totalMinutes);
     }
-    function formatHHMMToMinutes(hhmm) { // From time input value
-        if (!hhmm) return NaN;
+    function formatHHMMToMinutes(hhmm) { 
+        if (!hhmm || typeof hhmm !== 'string') return NaN;
         try {
             const [hours, minutes] = hhmm.split(':').map(Number);
             if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return NaN;
@@ -724,14 +921,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createHourSlots() {
-        scheduleTimelineEl.innerHTML = ''; // Clear existing
+        scheduleTimelineEl.innerHTML = ''; 
         for (let i = 0; i < 24; i++) {
             const slot = document.createElement('div');
             slot.classList.add('hour-slot');
             slot.dataset.hour = i;
             const label = document.createElement('span');
             label.classList.add('hour-label');
-            label.textContent = `${formatTime(i * 60)} - ${formatTime((i + 1) * 60)}`;
+            label.textContent = `${formatTime(i * 60)} - ${formatTime((i + 1) * 60 -1)}`;
             slot.appendChild(label);
             scheduleTimelineEl.appendChild(slot);
         }
@@ -740,29 +937,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function getHourSlotFromY(clientY) {
         const timelineRect = scheduleTimelineEl.getBoundingClientRect();
         const y = clientY - timelineRect.top + scheduleTimelineEl.scrollTop;
-        // Assuming 60px per hour as per original Brainbox CSS for .hour-slot
         const hourIndex = Math.floor(y / 60); 
         if (hourIndex < 0 || hourIndex > 23) return null;
         return scheduleTimelineEl.querySelector(`.hour-slot[data-hour="${hourIndex}"]`);
     }
 
     function renderScheduleTimeline() {
-        // Remove only scheduled task elements, not hour slots
-        scheduleTimelineEl.querySelectorAll('.scheduled-task').forEach(el => el.remove());
-
-        const tasksToSchedule = tasks.filter(t => t.isScheduled && t.status === 'active' && !t.isCompleted);
+        scheduleTimelineEl.querySelectorAll('.scheduled-task').forEach(el => el.remove()); 
+        const tasksToSchedule = tasks.filter(t => (t.isScheduled || t.is_scheduled) && t.status === 'active' && t.startTime !== null && t.duration !== null);
+        tasksToSchedule.sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0) ); 
         
-        // Basic overlap detection (can be improved for multiple overlaps and visual stacking)
-        tasksToSchedule.sort((a, b) => a.startTime - b.startTime);
-        for(let i=0; i < tasksToSchedule.length; i++) tasksToSchedule[i].isOverlapping = false; // Reset
+        for(let i=0; i < tasksToSchedule.length; i++) tasksToSchedule[i].isOverlapping = false;
 
         for (let i = 0; i < tasksToSchedule.length; i++) {
             for (let j = i + 1; j < tasksToSchedule.length; j++) {
                 const taskA = tasksToSchedule[i];
                 const taskB = tasksToSchedule[j];
-                const endTimeA = taskA.startTime + taskA.duration;
-                const endTimeB = taskB.startTime + taskB.duration;
-                if (taskA.startTime < endTimeB && endTimeA > taskB.startTime) {
+                const startTimeA = Number(taskA.startTime);
+                const durationA = Number(taskA.duration);
+                const startTimeB = Number(taskB.startTime);
+                const durationB = Number(taskB.duration);
+
+                if (isNaN(startTimeA) || isNaN(durationA) || isNaN(startTimeB) || isNaN(durationB)) continue;
+
+                const endTimeA = startTimeA + durationA;
+                const endTimeB = startTimeB + durationB;
+
+                if (startTimeA < endTimeB && endTimeA > startTimeB) {
                     tasksToSchedule[i].isOverlapping = true;
                     tasksToSchedule[j].isOverlapping = true;
                 }
@@ -770,191 +971,203 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tasksToSchedule.forEach(task => {
+            const taskStartTime = Number(task.startTime);
+            const taskDuration = Number(task.duration);
+            if (isNaN(taskStartTime) || isNaN(taskDuration) || taskDuration <=0) {
+                console.warn(`Skipping rendering scheduled task ${task.id} due to invalid time/duration.`);
+                return;
+            }
+
             const taskEl = document.createElement('div');
             taskEl.classList.add('scheduled-task');
             if (task.isOverlapping) taskEl.classList.add('overlapping');
             taskEl.id = `scheduled-${task.id}`;
             taskEl.dataset.taskId = task.id;
-            taskEl.style.top = `${task.startTime}px`; // 1px per minute
-            taskEl.style.height = `${Math.max(15, task.duration)}px`; // Min height 15px
-
+            taskEl.style.top = `${taskStartTime}px`; 
+            taskEl.style.height = `${Math.max(15, taskDuration)}px`; 
             const textSpan = document.createElement('span');
             textSpan.classList.add('task-text');
             textSpan.textContent = escapeHTML(task.text);
             taskEl.appendChild(textSpan);
-
             const timeSpan = document.createElement('span');
             timeSpan.classList.add('task-time');
-            timeSpan.textContent = `${formatTime(task.startTime)} - ${formatTime(task.startTime + task.duration)}`;
+            timeSpan.textContent = `${formatTime(taskStartTime)} - ${formatTime(taskStartTime + taskDuration)}`;
             taskEl.appendChild(timeSpan);
-
-            // Add project name if multiple projects are common, for clarity
-            // const project = projects.find(p => p.id === task.projectId);
-            // if (project && project.id !== UNCATEGORIZED_PROJECT_ID) {
-            //     const projectSpan = document.createElement('span');
-            //     projectSpan.style.fontSize = '0.8em'; projectSpan.style.opacity = '0.7';
-            //     projectSpan.textContent = ` (${escapeHTML(project.name)})`;
-            //     textSpan.appendChild(projectSpan);
-            // }
-
             taskEl.addEventListener('click', () => openScheduleModal(task.id, true));
             scheduleTimelineEl.appendChild(taskEl);
         });
     }
 
-    // Drag and Drop for Scheduling
     taskListEl.addEventListener('dragstart', (e) => {
-        if (e.target.classList.contains('task-text-content') || e.target.closest('li[draggable="true"]')) {
+        if (e.target.closest('li[draggable="true"]')) {
             const taskLi = e.target.closest('li[draggable="true"]');
             if (taskLi && taskLi.dataset.taskId) {
                 draggedTaskId = taskLi.dataset.taskId;
                 e.dataTransfer.setData('text/plain', draggedTaskId);
                 e.dataTransfer.effectAllowed = 'move';
-                taskLi.classList.add('dragging');
+                taskLi.classList.add('dragging'); 
             }
         } else {
-            e.preventDefault();
+            e.preventDefault(); 
         }
     });
-
     taskListEl.addEventListener('dragend', (e) => {
         if (draggedTaskId) {
-            const taskLi = document.getElementById(`task-${draggedTaskId}`) || taskListEl.querySelector(`li[data-task-id="${draggedTaskId}"]`);
+            const taskLi = taskListEl.querySelector(`li[data-task-id="${draggedTaskId}"]`);
             if (taskLi) taskLi.classList.remove('dragging');
         }
         draggedTaskId = null;
         clearDropTargets();
     });
-
     scheduleTimelineEl.addEventListener('dragover', (e) => {
-        e.preventDefault();
+        e.preventDefault(); 
         e.dataTransfer.dropEffect = 'move';
-        const targetSlot = getHourSlotFromY(e.clientY); // Highlight hour slot
-        clearDropTargets();
-        if (targetSlot) {
-            targetSlot.classList.add('drop-target');
-        }
+        const targetSlot = getHourSlotFromY(e.clientY); 
+        clearDropTargets(); 
+        if (targetSlot) targetSlot.classList.add('drop-target'); 
     });
-    
     scheduleTimelineEl.addEventListener('dragleave', (e) => {
-        // Check if the mouse is truly leaving the timeline or just moving between child elements
-        if (!scheduleTimelineEl.contains(e.relatedTarget)) {
+        if (!scheduleTimelineEl.contains(e.relatedTarget) || !e.relatedTarget.closest('.hour-slot')) {
             clearDropTargets();
         }
     });
-
     function clearDropTargets() {
-        scheduleTimelineEl.querySelectorAll('.hour-slot.drop-target').forEach(el => {
-            el.classList.remove('drop-target');
-        });
+        scheduleTimelineEl.querySelectorAll('.hour-slot.drop-target').forEach(el => el.classList.remove('drop-target'));
     }
-
     scheduleTimelineEl.addEventListener('drop', (e) => {
         e.preventDefault();
         clearDropTargets();
         const droppedTaskId = e.dataTransfer.getData('text/plain');
         const taskToSchedule = tasks.find(t => t.id === droppedTaskId);
 
-        if (!taskToSchedule || taskToSchedule.status !== 'active' || taskToSchedule.isCompleted) {
+        if (!taskToSchedule || taskToSchedule.status !== 'active') {
+            console.warn("Dropped task not found or not active:", droppedTaskId);
             draggedTaskId = null; return;
         }
-
         const timelineRect = scheduleTimelineEl.getBoundingClientRect();
-        const dropY = e.clientY - timelineRect.top + scheduleTimelineEl.scrollTop;
-        const rawMinutes = Math.max(0, Math.min(1439, Math.round(dropY))); // 1440 minutes in a day
-        const startMinutes = Math.round(rawMinutes / 15) * 15; // Snap to 15 minute intervals
+        const dropY = e.clientY - timelineRect.top + scheduleTimelineEl.scrollTop; 
+        
+        const rawMinutes = Math.max(0, Math.min(1439, Math.round(dropY)));
+        const startMinutes = Math.round(rawMinutes / 15) * 15; 
 
-        draggedTaskId = null; // Reset
-        openScheduleModal(taskToSchedule.id, taskToSchedule.isScheduled, startMinutes);
+        draggedTaskId = null; 
+        openScheduleModal(taskToSchedule.id, (taskToSchedule.isScheduled || taskToSchedule.is_scheduled), startMinutes);
     });
-
 
     function openScheduleModal(taskId, isEditingExistingSchedule = false, defaultStartTime = null) {
         const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
-
+        if (!task) {
+            console.error("Task not found for scheduling modal:", taskId);
+            return;
+        }
         modalTaskIdInput.value = task.id;
         modalTaskNameDisplay.textContent = escapeHTML(task.text);
+        const isActuallyScheduled = task.isScheduled || task.is_scheduled;
 
-        if (isEditingExistingSchedule || task.isScheduled) {
+        if (isEditingExistingSchedule || isActuallyScheduled) { 
             editModalTitle.textContent = 'Edit Scheduled Task';
-            modalStartTimeInput.value = formatMinutesToHHMM(task.startTime);
-            modalDurationInput.value = task.duration;
+            modalStartTimeInput.value = formatMinutesToHHMM(task.startTime); 
+            modalDurationInput.value = task.duration || 45; 
             modalScheduleDescriptionInput.value = task.scheduleDescription || '';
             modalDeleteTaskButton.textContent = 'Unschedule';
             modalDeleteTaskButton.title = 'Remove this task from the schedule';
         } else {
             editModalTitle.textContent = 'Schedule Task';
             modalStartTimeInput.value = defaultStartTime !== null ? formatMinutesToHHMM(defaultStartTime) : '';
-            modalDurationInput.value = task.duration || 45; // Default duration or previous if re-scheduling
+            modalDurationInput.value = task.duration || 45; 
             modalScheduleDescriptionInput.value = task.scheduleDescription || '';
-            modalDeleteTaskButton.textContent = 'Cancel Scheduling'; // Or hide it
+            modalDeleteTaskButton.textContent = 'Cancel Scheduling';
             modalDeleteTaskButton.title = 'Cancel scheduling this task';
-
         }
         openModal('edit-task-modal');
         modalStartTimeInput.focus();
     }
-    
-    function closeScheduleModal() {
-        closeModal('edit-task-modal');
-    }
+    function closeScheduleModal() { closeModal('edit-task-modal'); }
 
-    function handleSaveScheduledTask() {
+    async function handleSaveScheduledTask() {
         const taskId = modalTaskIdInput.value;
         const taskIndex = tasks.findIndex(t => t.id === taskId);
         if (taskIndex === -1) {
             displayFlashMessage(editTaskModal, "Task not found.", 'error'); return;
         }
-
-        const newStartTime = formatHHMMToMinutes(modalStartTimeInput.value);
+        const newStartTimeMinutes = formatHHMMToMinutes(modalStartTimeInput.value);
         const newDuration = parseInt(modalDurationInput.value, 10);
 
-        if (isNaN(newStartTime)) {
-            displayFlashMessage(editTaskModal, "Invalid start time.", 'error'); return;
+        if (isNaN(newStartTimeMinutes)) {
+            displayFlashMessage(editTaskModal, "Invalid start time. Please use HH:MM format.", 'error'); return;
         }
         if (isNaN(newDuration) || newDuration <= 0) {
-            displayFlashMessage(editTaskModal, "Invalid duration.", 'error'); return;
+            displayFlashMessage(editTaskModal, "Invalid duration. Must be a positive number of minutes.", 'error'); return;
         }
+        const scheduleDescription = modalScheduleDescriptionInput.value.trim();
 
-        tasks[taskIndex].isScheduled = true;
-        tasks[taskIndex].startTime = newStartTime;
-        tasks[taskIndex].duration = newDuration;
-        tasks[taskIndex].scheduleDescription = modalScheduleDescriptionInput.value.trim();
-        tasks[taskIndex].updatedAt = new Date().toISOString();
-        
-        closeScheduleModal();
-        renderScheduleTimeline();
-        renderTasksForCurrentProject(); // To update "Schedule" button text if needed
-        saveState();
+        try {
+            const result = await apiRequest('update_task_schedule', {
+                taskId,
+                startTime: newStartTimeMinutes,
+                duration: newDuration,
+                scheduleDescription: scheduleDescription,
+                isScheduled: true 
+            });
+            if (result.success && result.updatedTask) {
+                 if (taskIndex !== -1) tasks[taskIndex] = result.updatedTask;
+                 else tasks.push(result.updatedTask); 
+                closeScheduleModal();
+                renderScheduleTimeline();
+                renderTasksForCurrentProject(); 
+                displayFlashMessage(document.body, `Task "${escapeHTML(result.updatedTask.text)}" scheduled.`, 'success');
+            } else {
+                throw new Error(result.message || "Failed to save schedule.");
+            }
+        } catch (error) {
+            displayFlashMessage(editTaskModal, `Error saving schedule: ${error.message}`, 'error');
+        }
     }
 
-    function handleDeleteFromSchedule() { // This now means "Unschedule"
+    async function handleDeleteFromSchedule() { 
         const taskId = modalTaskIdInput.value;
         const taskIndex = tasks.findIndex(t => t.id === taskId);
-        if (taskIndex === -1) return;
-
-        if (tasks[taskIndex].isScheduled) {
-            tasks[taskIndex].isScheduled = false;
-            tasks[taskIndex].startTime = null;
-            tasks[taskIndex].duration = null;
-            // tasks[taskIndex].scheduleDescription = ''; // Optionally clear
-            tasks[taskIndex].updatedAt = new Date().toISOString();
-            displayFlashMessage(taskListEl.parentElement, `Task "${escapeHTML(tasks[taskIndex].text)}" unscheduled.`, 'success');
-        }
+        const task = tasks[taskIndex];
         
-        closeScheduleModal();
-        renderScheduleTimeline();
-        renderTasksForCurrentProject();
-        saveState();
+        if (taskIndex === -1 || !(task.isScheduled || task.is_scheduled)) {
+            closeScheduleModal();
+            return;
+        }
+
+        try {
+            const result = await apiRequest('unschedule_task', { taskId });
+            if (result.success && result.updatedTask) {
+                if (taskIndex !== -1) tasks[taskIndex] = result.updatedTask; 
+                else tasks.push(result.updatedTask);
+
+                displayFlashMessage(document.body, `Task "${escapeHTML(task.text)}" unscheduled.`, 'success'); // Use original task text for message
+                closeScheduleModal();
+                renderScheduleTimeline();
+                renderTasksForCurrentProject(); 
+            } else {
+                throw new Error(result.message || "Failed to unschedule task.");
+            }
+        } catch (error) {
+            displayFlashMessage(editTaskModal, `Error unscheduling: ${error.message}`, 'error');
+        }
     }
 
-    // --- Import/Export ---
     function exportData() {
+        if (!currentUser) {
+            displayFlashMessage(document.body, "Please login to export data.", 'error');
+            return;
+        }
+        const projectsToExport = projects.map(({ isOverlapping, ...rest }) => rest);
+        const tasksToExport = tasks.map(({ isOverlapping, ...rest }) => rest);
+
+
         const dataToExport = {
-            projects: projects,
-            tasks: tasks.map(({ isOverlapping, ...rest }) => rest),
-            appSettings: appSettings
+            version: "brainbox-pro-db-v1.1", 
+            exportedAt: new Date().toISOString(),
+            user: currentUser.username, 
+            projects: projectsToExport, 
+            tasks: tasksToExport,
+            appSettings: { theme: appSettings.theme, currentProjectId: appSettings.currentProjectId } 
         };
         try {
             const jsonString = JSON.stringify(dataToExport, null, 2);
@@ -962,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `brainbox-combined-data-${new Date().toISOString().slice(0, 10)}.json`;
+            a.download = `brainbox-pro-data-${currentUser.username}-${new Date().toISOString().slice(0, 10)}.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -970,44 +1183,46 @@ document.addEventListener('DOMContentLoaded', () => {
             displayFlashMessage(document.body, "Data exported successfully!", 'success');
         } catch (error) {
             console.error("Error exporting data:", error);
-            displayFlashMessage(document.body, "Failed to export data.", 'error');
+            displayFlashMessage(document.body, `Failed to export data: ${error.message}`, 'error');
         }
     }
 
-    function importData(event) {
+    async function importData(event) {
         const file = event.target.files[0];
         if (!file) return;
+        if (!currentUser) {
+            displayFlashMessage(document.body, "Please login to import data.", 'error');
+            importFileInput.value = null; 
+            return;
+        }
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const importedRaw = JSON.parse(e.target.result);
-                if (!importedRaw || typeof importedRaw !== 'object' || !Array.isArray(importedRaw.projects) || !Array.isArray(importedRaw.tasks) || typeof importedRaw.appSettings !== 'object') {
-                    throw new Error("Invalid file format. Required fields (projects, tasks, appSettings) missing or incorrect type.");
+                if (!importedRaw || typeof importedRaw !== 'object' || 
+                    !Array.isArray(importedRaw.projects) || !Array.isArray(importedRaw.tasks)) {
+                    throw new Error("Invalid file format. Required fields (projects, tasks) missing or incorrect type.");
                 }
-                if (confirm("Importing this file will overwrite ALL current data. Are you sure?")) {
-                    projects = importedRaw.projects;
-                    tasks = importedRaw.tasks;
-                    // Carefully merge appSettings to preserve defaults if some are missing in imported file
-                    appSettings = { 
-                        theme: 'light', currentProjectId: UNCATEGORIZED_PROJECT_ID, nextProjectIdNum:1, nextTaskIdNum:1, // Start with defaults
-                        ...importedRaw.appSettings // Override with imported
-                    };
-                    
-                    // Recalculate next IDs based on imported data to prevent collisions
-                    const maxProjNum = projects.reduce((max, p) => Math.max(max, parseInt(p.id.split('_')[1]) || 0), 0);
-                    appSettings.nextProjectIdNum = Math.max(appSettings.nextProjectIdNum, maxProjNum + 1);
-                    const maxTaskNum = tasks.reduce((max, t) => Math.max(max, parseInt(t.id.split('_')[1]) || 0), 0);
-                    appSettings.nextTaskIdNum = Math.max(appSettings.nextTaskIdNum, maxTaskNum + 1);
+                
+                if (confirm("Importing this file will attempt to ADD its content to your current data on the server. Existing items with the same ID might be updated. Are you sure?")) {
+                    const result = await apiRequest('import_data', {
+                        projects: importedRaw.projects,
+                        tasks: importedRaw.tasks,
+                        appSettings: importedRaw.appSettings 
+                    });
 
-                    initializeAppUI(); // Re-initialize entire UI
-                    saveState(); // Save the newly imported state
-                    displayFlashMessage(document.body, "Data imported successfully!", 'success');
+                    if (result.success) {
+                        displayFlashMessage(document.body, "Data import processed by server. Reloading all data...", 'success', 5000);
+                        await loadDataFromServer(); 
+                    } else {
+                        throw new Error(result.message || "Server failed to process import.");
+                    }
                 }
             } catch (error) {
                 console.error("Error importing data:", error);
-                displayFlashMessage(document.body, `Failed to import file: ${error.message}`, 'error');
+                displayFlashMessage(document.body, `Failed to import file: ${error.message}`, 'error', 7000);
             } finally {
-                importFileInput.value = null; // Reset file input
+                importFileInput.value = null; 
             }
         };
         reader.onerror = () => {
@@ -1017,7 +1232,38 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     }
 
-    // --- Event Listeners Setup ---
+    function renderAllTasksModal() {
+        allTasksListContainerEl.innerHTML = ''; 
+        let contentHtml = '';
+        const activeProjectsWithTasks = projects.filter(p => p.status === 'active');
+        let tasksFoundOverall = false;
+
+        activeProjectsWithTasks.forEach(project => {
+            const projectTasks = tasks.filter(task => task.project_id === project.id && task.status === 'active'); // Use task.project_id
+            if (projectTasks.length > 0) {
+                tasksFoundOverall = true;
+                contentHtml += `<div class="project-task-group"><h4>${escapeHTML(project.name)}</h4><ul class="all-tasks-list">`;
+                projectTasks.sort((a, b) => new Date(a.createdAt || a.created_at || 0) - new Date(b.createdAt || b.created_at || 0));
+                projectTasks.forEach(task => {
+                    const isScheduled = task.isScheduled || task.is_scheduled;
+                    const taskClasses = isScheduled ? 'scheduled-in-list' : '';
+                    contentHtml += `<li class="${taskClasses}"><span class="task-text-all">${escapeHTML(task.text)}</span></li>`;
+                });
+                contentHtml += `</ul></div>`;
+            }
+        });
+
+        if (!tasksFoundOverall) {
+            contentHtml = '<p id="no-all-tasks-message">No active tasks found across all projects.</p>';
+        }
+        allTasksListContainerEl.innerHTML = contentHtml;
+    }
+
+    function openAllTasksModal() {
+        renderAllTasksModal();
+        openModal('all-tasks-modal');
+    }
+
     function setupEventListeners() {
         themeSelect.addEventListener('change', handleThemeChange);
         aboutButton.addEventListener('click', () => openModal('about-modal'));
@@ -1030,38 +1276,81 @@ document.addEventListener('DOMContentLoaded', () => {
         newTaskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleNewTaskSubmit(); });
 
         modalSaveTaskButton.addEventListener('click', handleSaveScheduledTask);
-        modalDeleteTaskButton.addEventListener('click', handleDeleteFromSchedule); // This is "Unschedule" or "Cancel"
+        modalDeleteTaskButton.addEventListener('click', handleDeleteFromSchedule);
 
         exportDataButton.addEventListener('click', exportData);
-        importDataButton.addEventListener('click', () => importFileInput.click());
+        importDataButton.addEventListener('click', () => { if (currentUser) importFileInput.click(); else displayFlashMessage(document.body, "Please login to import data.", "error"); });
         importFileInput.addEventListener('change', importData);
+
+        logoutButton.addEventListener('click', logout);
+        showAllTasksButton.addEventListener('click', openAllTasksModal);
         
         initModalCloseButtons();
     }
     
-    // --- Initialization ---
     function initializeAppUI() {
-        applyTheme(appSettings.theme); // Apply loaded or default theme
-        themeSelect.value = appSettings.theme;
-        
-        ensureUncategorizedProject(); // Ensure default project exists and currentProjectId is valid
-        
-        renderProjectFilterDropdown(); // Populates dropdown, sets current project, updates header
-        renderTasksForCurrentProject(); // Renders tasks for the current project
+        renderProjectFilterDropdown(); 
+        createHourSlots();
+        renderScheduleTimeline();
 
-        createHourSlots(); // Create timeline structure
-        renderScheduleTimeline(); // Render scheduled tasks
+        appContentWrapper.style.display = 'flex'; 
+        authBlocker.style.display = 'none';
+        
+        if (currentUser) {
+            userGreetingEl.textContent = `Hi, ${escapeHTML(currentUser.username)}!`;
+            userGreetingEl.style.display = 'inline';
+            logoutButton.style.display = 'inline-flex';
+            showAllTasksButton.style.display = 'inline-flex'; 
+        } else { 
+            logoutButton.style.display = 'none';
+            showAllTasksButton.style.display = 'none';
+            userGreetingEl.style.display = 'none';
+        }
+        handleProjectFilterChange(); 
+        console.log("App UI initialized for user:", currentUser?.username);
     }
 
-    function initializeApp() {
-        loadState(); // Load data and settings first
-        initializeAppUI(); // Then initialize UI components based on loaded state
-        setupEventListeners(); // Setup event listeners last
-        console.log("App initialized.");
-        console.log("Current Project ID on init:", appSettings.currentProjectId);
-        console.log("Projects on init:", projects);
-        console.log("Tasks on init:", tasks);
+    async function checkAuthentication() {
+        try {
+            const data = await apiRequest('check_auth', {}, 'GET'); 
 
+            if (data.success && data.authenticated) {
+                currentUser = data.user;
+                console.log("User authenticated:", currentUser);
+                await loadDataFromServer(); 
+            } else {
+                console.log("User not authenticated. Displaying auth blocker.");
+                appContentWrapper.style.display = 'none';
+                authBlocker.style.display = 'flex'; 
+            }
+        } catch (error) { 
+            appContentWrapper.style.display = 'none';
+            authBlocker.innerHTML = `<div style="background-color: var(--bg-modal); color: var(--text-primary); padding: 30px; border-radius: 8px; display: inline-block; box-shadow: 0 5px 15px var(--shadow-primary);"><h3 style="margin-bottom: 15px;">Authentication Error</h3><p>Could not verify your session. Please <a href="login.html" style="color: var(--accent-primary); font-weight: bold;">try logging in</a>.</p></div>`;
+            authBlocker.style.display = 'flex';
+        }
+    }
+
+    async function logout() {
+        try {
+            const data = await apiRequest('logout', {}, 'POST'); 
+            if (data.success) {
+                currentUser = null;
+                projects = [];
+                tasks = [];
+                appSettings.currentProjectId = null; 
+                window.location.href = 'login.html';
+            } else {
+                displayFlashMessage(document.body, data.message || "Logout failed.", 'error');
+            }
+        } catch (error) {
+            displayFlashMessage(document.body, "Error during logout. Please try again.", 'error');
+        }
+    }
+
+    async function initializeApp() {
+        setupEventListeners(); 
+        await checkAuthentication(); 
+        console.log("App initialization sequence completed or auth prompt shown.");
     }
 
     initializeApp();

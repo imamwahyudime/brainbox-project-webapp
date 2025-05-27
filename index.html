@@ -11,11 +11,17 @@
     <header class="app-header">
         <h1>Brainstorm & Timebox</h1>
         <div class="controls">
+            <span id="user-greeting" style="margin-right: 15px; display: none;"></span>
+            <button id="logout-button" title="Logout" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="currentColor"><path d="M377.9 105.9L500.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L377.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1-128 0c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM160 96L160 96c0-17.7-14.3-32-32-32L64 64C28.7 64 0 92.7 0 128L0 384c0 35.3 28.7 64 64 64l64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0V128l64 0c17.7 0 32-14.3 32-32z"/></svg> Logout
+            </button>
             <label for="theme-select">Theme:</label>
             <select id="theme-select">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
             </select>
+            <button id="show-all-tasks-button" title="Show All Tasks"> <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="currentColor"><path d="M128 96h256V32H128V96zM32 128H160V448H32V128zm160 0H352V448H192V128zM384 128H480V448H384V128zM64 32C28.7 32 0 60.7 0 96V448c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64z"/></svg> All Tasks
+            </button>
             <button id="export-data-button" title="Export Data">
                 <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="currentColor"><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V416c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg> Export
             </button>
@@ -29,34 +35,41 @@
         </div>
     </header>
 
-    <div class="app-container">
-        <div class="task-project-container"> {/* Was task-list-container */}
-            <div class="project-selector-area">
-                <label for="project-filter-select">Project:</label>
-                <select id="project-filter-select">
-                    {/* Options will be populated by JS */}
-                </select>
-                <button id="manage-projects-btn" class="button-small">Manage Projects</button>
-                 <button id="view-task-recycle-bin-btn" class="button-small">Task Bin</button>
+    <div id="app-content-wrapper">
+        <div class="app-container">
+            <div class="task-project-container">
+                <div class="project-selector-area">
+                    <label for="project-filter-select">Project:</label>
+                    <select id="project-filter-select">
+                        </select>
+                    <button id="manage-projects-btn" class="button-small">Manage Projects</button>
+                     <button id="view-task-recycle-bin-btn" class="button-small">Task Bin</button>
+                </div>
+
+                <h2 id="tasks-section-header">Tasks</h2>
+                <div class="add-task">
+                    <input type="text" id="new-task-input" placeholder="Add a new task...">
+                    <button id="add-task-button" type="button">Add Task</button>
+                </div>
+                <ul id="task-list">
+                    </ul>
             </div>
 
-            <h2 id="tasks-section-header">Tasks</h2> {/* Will be updated by JS */}
-            <div class="add-task">
-                <input type="text" id="new-task-input" placeholder="Add a new task...">
-                <button id="add-task-button" type="button">Add Task</button>
-            </div>
-            <ul id="task-list">
-                {/* Tasks for the selected project will be populated by JS */}
-            </ul>
-        </div>
-
-        <div class="schedule-container">
-            <h2>Schedule</h2>
-            <div id="schedule-timeline">
-                {/* Timeline slots and scheduled tasks will be populated by JS */}
+            <div class="schedule-container">
+                <h2>Schedule</h2>
+                <div id="schedule-timeline">
+                    </div>
             </div>
         </div>
     </div>
+    
+    <div id="auth-blocker" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; text-align: center; padding-top: 20%; justify-content: center; align-items: flex-start;">
+        <div style="background-color: var(--bg-modal); color: var(--text-primary); padding: 30px; border-radius: 8px; display: inline-block; box-shadow: 0 5px 15px var(--shadow-primary);">
+            <h3 style="margin-bottom: 15px;">Access Denied</h3>
+            <p>Please <a href="login.html" style="color: var(--accent-primary); font-weight: bold;">login</a> to use the application.</p>
+        </div>
+    </div>
+
 
     <div id="edit-task-modal" class="modal">
         <div class="modal-content">
@@ -77,7 +90,7 @@
             </div>
             <button id="modal-save-task-button" type="button">Save Changes</button>
             <button id="modal-delete-task-button" class="delete-button" type="button">Delete from Schedule</button>
-            <input type="hidden" id="modal-task-id"> {/* Unified task ID being edited/scheduled */}
+            <input type="hidden" id="modal-task-id">
         </div>
     </div>
 
@@ -104,7 +117,6 @@
         <div class="modal-content">
             <span class="close-button" data-modal-id="project-management-modal">&times;</span>
             <h3>Project Management</h3>
-
             <div class="form-section">
                 <h4>Create New Project</h4>
                 <form id="new-project-form">
@@ -113,19 +125,13 @@
                 </form>
                 <p id="project-form-message" class="message"></p>
             </div>
-
             <div class="list-section">
                 <h4>Active Projects</h4>
-                <ul id="modal-project-list">
-                    {/* Active projects will be listed here by JS */}
-                </ul>
+                <ul id="modal-project-list"></ul>
             </div>
-
             <div class="list-section">
                 <h4>Deleted Projects (Recycle Bin)</h4>
-                <ul id="modal-deleted-project-list">
-                    {/* Deleted projects will be listed here by JS */}
-                </ul>
+                <ul id="modal-deleted-project-list"></ul>
                 <p id="modal-deleted-project-message" class="message"></p>
             </div>
         </div>
@@ -135,10 +141,17 @@
         <div class="modal-content">
             <span class="close-button" data-modal-id="task-recycle-bin-modal">&times;</span>
             <h3>Task Recycle Bin</h3>
-            <ul id="modal-task-recycle-bin-list">
-                {/* Soft-deleted tasks will be listed here by JS */}
-            </ul>
+            <ul id="modal-task-recycle-bin-list"></ul>
             <p id="modal-task-recycle-bin-message" class="message"></p>
+        </div>
+    </div>
+
+    <div id="all-tasks-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" data-modal-id="all-tasks-modal">&times;</span>
+            <h3>All Active Tasks</h3>
+            <div class="modal-body" id="all-tasks-list-container">
+                </div>
         </div>
     </div>
 
