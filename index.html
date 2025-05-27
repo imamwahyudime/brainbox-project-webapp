@@ -7,7 +7,22 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body data-theme="light">
-
+<script>
+  (function() {
+    try {
+      var StoredTheme = localStorage.getItem('brainboxProTheme');
+      if (StoredTheme) {
+        document.body.setAttribute('data-theme', StoredTheme);
+      }
+      // If no theme is in localStorage, it will default to what's in your HTML:
+      // <body data-theme="light"> which is the desired fallback.
+    } catch(e) {
+      // In case of any error (e.g., localStorage disabled in very strict environments)
+      // it will just fall back to the default theme. You can log this if needed.
+      console.warn('Could not apply theme from localStorage early:', e);
+    }
+  })();
+</script>
     <header class="app-header">
         <h1>Brainstorm & Timebox</h1>
         <div class="controls">
@@ -19,9 +34,8 @@
             <select id="theme-select">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
+                <option value="sepia">Sepia</option>
             </select>
-            <button id="show-all-tasks-button" title="Show All Tasks"> <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="currentColor"><path d="M128 96h256V32H128V96zM32 128H160V448H32V128zm160 0H352V448H192V128zM384 128H480V448H384V128zM64 32C28.7 32 0 60.7 0 96V448c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64z"/></svg> All Tasks
-            </button>
             <button id="export-data-button" title="Export Data">
                 <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="currentColor"><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V416c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg> Export
             </button>
@@ -43,7 +57,8 @@
                     <select id="project-filter-select">
                         </select>
                     <button id="manage-projects-btn" class="button-small">Manage Projects</button>
-                     <button id="view-task-recycle-bin-btn" class="button-small">Task Bin</button>
+                    <button id="view-task-recycle-bin-btn" class="button-small">Task Bin</button>
+                    <button id="show-all-tasks-button" title="Show All Tasks" class="button-small"> <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="currentColor"><path d="M128 96h256V32H128V96zM32 128H160V448H32V128zm160 0H352V448H192V128zM384 128H480V448H384V128zM64 32C28.7 32 0 60.7 0 96V448c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64z"/></svg> All Tasks</button>
                 </div>
 
                 <h2 id="tasks-section-header">Tasks</h2>
@@ -88,8 +103,8 @@
                 <label for="modal-schedule-description">Description (optional):</label>
                 <textarea id="modal-schedule-description" rows="3"></textarea>
             </div>
-            <button id="modal-save-task-button" type="button">Save Changes</button>
-            <button id="modal-delete-task-button" class="delete-button" type="button">Delete from Schedule</button>
+            <div class="modal-actions"> <button id="modal-save-task-button" type="button">Save Changes</button>
+                <button id="modal-complete-task-button" class="button-secondary" type="button">Mark as Complete</button> <button id="modal-delete-task-button" class="delete-button" type="button">Unschedule</button> </div>
             <input type="hidden" id="modal-task-id">
         </div>
     </div>
@@ -98,7 +113,7 @@
         <div class="modal-content">
             <span class="close-button" data-modal-id="about-modal">&times;</span>
             <h3>About Brainstorm & Timebox Pro</h3>
-            <p><strong>Version:</strong> 1.0.0 (Combined)</p>
+            <p><strong>Version:</strong> 1.1.2 (Combined)</p>
             <p><strong>Creator:</strong> Imam Wahyudi (Brainbox) & AI Assisted Combination</p>
             <p>This application combines project management with timebox scheduling.</p>
             <p>
@@ -143,15 +158,6 @@
             <h3>Task Recycle Bin</h3>
             <ul id="modal-task-recycle-bin-list"></ul>
             <p id="modal-task-recycle-bin-message" class="message"></p>
-        </div>
-    </div>
-
-    <div id="all-tasks-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" data-modal-id="all-tasks-modal">&times;</span>
-            <h3>All Active Tasks</h3>
-            <div class="modal-body" id="all-tasks-list-container">
-                </div>
         </div>
     </div>
 

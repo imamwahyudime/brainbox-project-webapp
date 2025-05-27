@@ -8,6 +8,22 @@
     
 </head>
 <body class="auth-page" data-theme="light"> <div class="auth-container">
+    <script>
+  (function() {
+    try {
+      var StoredTheme = localStorage.getItem('brainboxProTheme');
+      if (StoredTheme) {
+        document.body.setAttribute('data-theme', StoredTheme);
+      }
+      // If no theme is in localStorage, it will default to what's in your HTML:
+      // <body data-theme="light"> which is the desired fallback.
+    } catch(e) {
+      // In case of any error (e.g., localStorage disabled in very strict environments)
+      // it will just fall back to the default theme. You can log this if needed.
+      console.warn('Could not apply theme from localStorage early:', e);
+    }
+  })();
+</script>
         <h1>Login</h1>
         <form id="login-form" class="auth-form">
             <div>

@@ -81,6 +81,48 @@ body[data-theme="dark"] {
     --all-tasks-project-header-bg: var(--bg-tertiary); /* For new modal */
 }
 
+body[data-theme="sepia"] {
+    --bg-primary: #f4ecd8; /* Creamy background */
+    --bg-secondary: #eaddc7; /* Slightly darker cream */
+    --bg-tertiary: #d8c7b3; /* Even darker, for less emphasis */
+    --bg-modal: #faf0e0;   /* Modal background */
+    --text-primary: #5b4636;  /* Dark brown text */
+    --text-secondary: #795548; /* Medium brown text */
+    --text-muted: #a1887f;    /* Lighter brown for muted text */
+    --border-primary: #d7ccc8; /* Light brown border */
+    --border-secondary: #bcaaa4; /* Medium brown border */
+    --border-hour-slot: #a1887f; /* Muted brown for dotted lines */
+    --accent-primary: #8d6e63; /* Muted, darker brown for primary accent */
+    --accent-primary-hover: #795548; /* Darker shade for hover */
+    --accent-delete: #c62828; /* Muted red/brown for delete */
+    --accent-delete-hover: #a30000;
+    --accent-recover: #558b2f; /* Muted green/brown for recover */
+    --accent-recover-hover: #33691e;
+    --accent-warning: #ef6c00; /* Muted orange/brown for warning */
+    --accent-warning-hover: #e65100;
+    --shadow-primary: rgba(72, 53, 39, 0.2); /* Brownish shadow */
+    --scheduled-task-bg: rgba(141, 110, 99, 0.8); /* Muted brown for tasks */
+    --scheduled-task-border: #6d4c41;
+    --scheduled-task-text: #f5f5f5; /* Off-white text for tasks */
+    --overlapping-task-bg: rgba(198, 40, 40, 0.6);
+    --overlapping-task-border: #a30000;
+    --drop-target-bg: #efebe9; /* Very light brown for drop target */
+    --timeline-bg: #fbf5ef;   /* Light cream for timeline background */
+    --button-secondary-bg: #a1887f; /* Muted brown for secondary buttons */
+    --button-secondary-hover-bg: #8d6e63;
+    --list-item-bg: #e6dacb; 
+    --list-item-hover-bg: #d7ccc8;
+    --list-item-border: #c1b4a6;
+    --message-success-bg: #dcedc8; 
+    --message-success-text: #33691e;
+    --message-success-border: #c5e1a5;
+    --message-error-bg: #ffcdd2;
+    --message-error-text: #b71c1c;
+    --message-error-border: #ef9a9a;
+    --all-tasks-project-header-bg: var(--bg-tertiary);
+}
+
+
 /* Basic Reset & Body Styling */
 * {
     box-sizing: border-box;
@@ -95,7 +137,6 @@ body {
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
-    /* align-items: center; /* REMOVED this to allow children to expand fully */
     min-height: 100vh;
     padding-top: 0;
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -103,11 +144,11 @@ body {
 
 /* Wrapper for the main app content below the header */
 #app-content-wrapper {
-    width: 100%; /* Ensure it takes full width */
+    width: 100%; 
     display: flex;
-    justify-content: center; /* This will center the app-container if it has a max-width */
-    flex-grow: 1; /* Allow it to take available vertical space */
-    padding: 0 10px; /* Add some padding so app-container isn't flush with screen edges */
+    justify-content: center; 
+    flex-grow: 1; 
+    padding: 0 10px; 
 }
 
 
@@ -120,7 +161,6 @@ body {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 5px var(--shadow-primary);
-    /* margin-bottom: 20px; /* This margin is now on app-container or app-content-wrapper could have padding-top */
     position: sticky;
     top: 0;
     z-index: 1100;
@@ -173,8 +213,18 @@ body {
 .controls button.button-secondary,
 .modal-content button.button-secondary {
     background-color: var(--button-secondary-bg);
-    color: var(--text-primary);
+    color: var(--text-primary); /* Ensure good contrast, might need to be white for some themes */
 }
+body[data-theme="dark"] .controls button.button-secondary,
+body[data-theme="dark"] .modal-content button.button-secondary {
+    color: white; /* Example: Ensure white text on dark secondary buttons */
+}
+body[data-theme="sepia"] .controls button.button-secondary,
+body[data-theme="sepia"] .modal-content button.button-secondary {
+    color: var(--bg-primary); /* Example: Ensure light text on sepia secondary buttons */
+}
+
+
 .controls button.button-secondary:hover,
 .modal-content button.button-secondary:hover {
     background-color: var(--button-secondary-hover-bg);
@@ -236,16 +286,16 @@ select {
 /* App Layout */
 .app-container {
     display: flex;
-    width: 95%; /* Will be 95% of the app-content-wrapper */
-    max-width: 1500px; /* Still good to have a max-width for very large screens */
+    width: 95%; 
+    max-width: 1500px; 
     background-color: var(--bg-primary);
     box-shadow: 0 2px 10px var(--shadow-primary);
     border-radius: 8px;
-    min-height: calc(100vh - 100px); /* Adjust based on header and potential footer */
-    overflow: hidden; /* Important to contain children */
+    min-height: calc(100vh - 100px); 
+    overflow: hidden; 
     transition: background-color 0.3s ease;
-    margin-top: 20px; /* Add space between header and this container */
-    margin-bottom: 20px; /* Space at the bottom */
+    margin-top: 20px; 
+    margin-bottom: 20px; 
 }
 
 /* Task & Project Container (Left Panel) */
@@ -356,16 +406,16 @@ select {
 
 #schedule-timeline {
     position: relative;
-    height: 1440px;
+    height: 1440px; /* 24 hours * 60 minutes/pixel */
     background-color: var(--timeline-bg);
     border: 1px solid var(--border-primary);
     overflow-y: auto;
     flex-grow: 1;
-    padding-left: 70px;
+    padding-left: 70px; /* Space for hour labels */
     transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 .hour-slot { 
-    height: 60px; 
+    height: 60px; /* 60 minutes = 60 pixels */
     position: relative; 
     box-sizing: border-box; 
     border-bottom: 1px dotted var(--border-hour-slot);
@@ -389,7 +439,7 @@ select {
 /* Scheduled Task Styling on Timeline */
 .scheduled-task {
     position: absolute;
-    left: 5px;
+    left: 5px; /* From the hour label area border */
     right: 5px;
     background-color: var(--scheduled-task-bg);
     color: var(--scheduled-task-text);
@@ -399,19 +449,24 @@ select {
     padding: 4px 8px;
     font-size: 0.8em;
     overflow: hidden;
-    cursor: pointer;
+    cursor: grab; /* Changed from pointer for draggable tasks */
     z-index: 100;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease, top 0.1s ease-out, height 0.1s ease-out;
 }
 .scheduled-task:hover { filter: brightness(1.1); border-color: var(--accent-primary-hover); }
 .scheduled-task.overlapping { background-color: var(--overlapping-task-bg); border-color: var(--overlapping-task-border); border-left-color: var(--accent-warning); z-index: 101; }
 .scheduled-task.overlapping:hover { filter: brightness(1.2); }
 .scheduled-task .task-text { font-weight: 500; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scheduled-task .task-time { font-size: 0.9em; opacity: 0.8; white-space: nowrap; }
+.scheduled-task.dragging-from-timeline {
+    opacity: 0.6;
+    border-style: dashed;
+    z-index: 150; /* Ensure it's above other tasks while dragging */
+}
 
 
 /* Modal Styling */
@@ -439,21 +494,19 @@ select {
     box-shadow: 0 5px 15px var(--shadow-primary);
     transition: background-color 0.3s ease, border-color 0.3s ease;
 }
-/* Larger modal for Project Management & All Tasks */
 #project-management-modal .modal-content,
-#all-tasks-modal .modal-content { /* Added #all-tasks-modal */
-    max-width: 700px; /* Default for these larger modals */
+#all-tasks-modal .modal-content { 
+    max-width: 700px; 
 }
-/* Specific larger width for All Tasks modal if needed, can be same or different */
 #all-tasks-modal .modal-content {
-    max-width: 800px; /* Example: Make All Tasks modal wider */
-    max-height: 80vh; /* Allow scrolling within modal content */
-    display: flex; /* Allow internal scrolling for content */
+    max-width: 800px; 
+    max-height: 80vh; 
+    display: flex; 
     flex-direction: column;
 }
-#all-tasks-modal .modal-body { /* New class for scrollable content in All Tasks modal */
+#all-tasks-modal .modal-body { 
     overflow-y: auto;
-    padding-right: 15px; /* For scrollbar */
+    padding-right: 15px; 
 }
 
 
@@ -476,7 +529,22 @@ select {
 
 /* Modal Specifics: Edit/Schedule Task Modal */
 #edit-task-modal #modal-task-name-display { font-weight: bold; }
-#edit-task-modal button:not(:last-child) { margin-right: 10px; }
+/* Arrange buttons in Edit Task Modal for better flow */
+#edit-task-modal .modal-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between; /* Puts save on one side, others on another */
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+    gap: 10px;
+}
+#edit-task-modal .modal-actions button {
+    flex-grow: 1; /* Allow buttons to grow if space allows */
+    min-width: 120px; /* Ensure buttons have a minimum width */
+}
+#edit-task-modal #modal-save-task-button {
+    order: 3; /* Make Save appear last visually if needed, or adjust flex order */
+}
+
 
 /* Modal Specifics: About Modal */
 #about-modal .modal-content p { margin-bottom: 10px; line-height: 1.5; }
@@ -538,7 +606,7 @@ select {
     border: 1px solid var(--border-secondary);
     border-radius: 5px;
 }
-#all-tasks-list-container .project-task-group h4 { /* Project Name Header */
+#all-tasks-list-container .project-task-group h4 { 
     background-color: var(--all-tasks-project-header-bg);
     color: var(--text-primary);
     padding: 10px 15px;
@@ -548,27 +616,34 @@ select {
     border-top-right-radius: 4px;
     font-size: 1.1em;
 }
-#all-tasks-list-container ul.all-tasks-list { /* List of tasks under a project */
+#all-tasks-list-container ul.all-tasks-list { 
     list-style: none;
-    padding: 0 15px 10px 15px; /* Padding inside the group */
+    padding: 0 15px 10px 15px; 
     margin:0;
-    max-height: none; /* Override general modal ul max-height if needed */
-    overflow-y: visible; /* Let modal body handle scroll */
+    max-height: none; 
+    overflow-y: visible; 
 }
 #all-tasks-list-container ul.all-tasks-list li {
-    background-color: var(--bg-primary); /* Slightly different from other modal lists for contrast */
-    /* padding: 8px 10px; */ /* Already has padding from general modal ul li */
-    /* margin-bottom: 6px; */ /* Already has margin from general modal ul li */
-    /* display: flex; */ /* Already flex */
-    /* align-items: center; */ /* Already aligned */
-    /* justify-content: flex-start; */ /* Override default justify for these items */
+    background-color: var(--bg-primary); 
     word-break: break-word;
+    /* Other properties inherited from .modal ul li like padding, margin, display flex */
+}
+/* Style for checkbox in All Tasks modal */
+#all-tasks-list-container ul.all-tasks-list li input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px; /* Space between checkbox and text */
+    transform: scale(1.1);
+    cursor: pointer;
 }
 #all-tasks-list-container ul.all-tasks-list li .task-text-all {
-    /* flex-grow: 1; */ /* Not needed if no actions */
+    flex-grow: 1; /* Allow text to take remaining space */
+}
+#all-tasks-list-container ul.all-tasks-list li.completed .task-text-all {
+    text-decoration: line-through;
+    color: var(--text-muted);
 }
 #all-tasks-list-container ul.all-tasks-list li.scheduled-in-list::before {
-    content: '🕒'; /* Clock emoji for scheduled tasks */
+    content: '🕒'; 
     margin-right: 8px;
     font-size: 0.9em;
 }
@@ -639,7 +714,7 @@ select {
 /* Responsive adjustments */
 @media (max-width: 768px) {
     #app-content-wrapper {
-        padding: 0; /* Remove padding on mobile so app-container can be 100% */
+        padding: 0; 
     }
     .app-header {
         flex-direction: column;
@@ -654,11 +729,11 @@ select {
 
     .app-container {
         flex-direction: column;
-        width: 100%; /* Full width on mobile */
-        margin-top: 0; /* Remove top margin on mobile if header is part of viewport height calculations */
+        width: 100%; 
+        margin-top: 0; 
         margin-bottom: 0;
         border-radius: 0;
-        min-height: calc(100vh - var(--header-height, 120px)); /* Adjust based on actual header height */
+        min-height: calc(100vh - var(--header-height, 120px)); 
     }
     .task-project-container, .schedule-container {
         width: 100%;
@@ -679,7 +754,7 @@ select {
         width: 95%;
     }
     #project-management-modal .modal-content,
-    #all-tasks-modal .modal-content { /* Added #all-tasks-modal */
+    #all-tasks-modal .modal-content { 
         max-width: 95%;
     }
     .modal-content h3 { font-size: 1.2em; }
@@ -687,6 +762,9 @@ select {
         display: block;
         width: 100%;
         margin-bottom: 10px;
+    }
+    #edit-task-modal .modal-actions button { /* Ensure edit task modal buttons stack nicely */
+        width: auto; /* Let flexbox handle width based on content and flex-grow */
     }
     .modal-content button:not(:last-child):not(.button-small):not(.task-actions button) {
         margin-right: 0;
@@ -762,8 +840,19 @@ body.auth-page {
 .auth-form input[type="password"]:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px rgba(92, 103, 242, 0.2);
+    box-shadow: 0 0 0 2px rgba(92, 103, 242, 0.2); /* Light theme focus */
 }
+body[data-theme="dark"] .auth-form input[type="text"]:focus,
+body[data-theme="dark"] .auth-form input[type="email"]:focus,
+body[data-theme="dark"] .auth-form input[type="password"]:focus {
+    box-shadow: 0 0 0 2px rgba(114, 137, 218, 0.3); /* Dark theme focus */
+}
+body[data-theme="sepia"] .auth-form input[type="text"]:focus,
+body[data-theme="sepia"] .auth-form input[type="email"]:focus,
+body[data-theme="sepia"] .auth-form input[type="password"]:focus {
+    box-shadow: 0 0 0 2px rgba(141, 110, 99, 0.3); /* Sepia theme focus */
+}
+
 
 .auth-form button {
     width: 100%;
@@ -787,21 +876,27 @@ body.auth-page {
     padding: 10px;
     border-radius: 5px;
     font-size: 0.9em;
-    display: none;
+    /* display: none; */ /* JS will handle display by adding/removing class */
+    visibility: hidden; /* Hide by default, JS adds success/error class to show */
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
+.auth-message.error,
+.auth-message.success {
+    /* display: block; */ /* Replaced by visibility */
+    visibility: visible;
+    opacity: 1;
+}
 .auth-message.error {
     background-color: var(--message-error-bg);
     color: var(--message-error-text);
     border: 1px solid var(--message-error-border);
-    display: block;
 }
-
 .auth-message.success {
     background-color: var(--message-success-bg);
     color: var(--message-success-text);
     border: 1px solid var(--message-success-border);
-    display: block;
 }
 
 .switch-auth {
@@ -819,7 +914,9 @@ body.auth-page {
     text-decoration: underline;
 }
 
-body[data-theme="light"].auth-page {
+/* --- Auth Page Specific Theme Overrides --- */
+/* These ensure that auth pages also reflect the chosen theme variables if data-theme is set on body */
+body[data-theme="light"].auth-page { /* Default values, already defined in :root but good for clarity */
     --bg-secondary: #f4f4f4;
     --bg-primary: #ffffff;
     --shadow-primary: rgba(0, 0, 0, 0.1);
@@ -827,7 +924,7 @@ body[data-theme="light"].auth-page {
     --accent-primary-hover: #4a54cc;
     --text-secondary: #555555;
     --border-secondary: #dddddd;
-    --bg-tertiary: #e9e9e9;
+    --bg-tertiary: #e9e9e9; /* Used for input backgrounds on auth form */
     --text-primary: #333333;
     --message-error-bg: #f8d7da;
     --message-error-text: #721c24;
@@ -853,4 +950,33 @@ body[data-theme="dark"].auth-page {
     --message-success-bg: #2a4b37;
     --message-success-text: #a7d7b7;
     --message-success-border: #3e6a4f;
+}
+
+body[data-theme="sepia"].auth-page {
+    --bg-secondary: #eaddc7;
+    --bg-primary: #f4ecd8;
+    --shadow-primary: rgba(72, 53, 39, 0.2);
+    --accent-primary: #8d6e63;
+    --accent-primary-hover: #795548;
+    --text-secondary: #795548;
+    --border-secondary: #bcaaa4;
+    --bg-tertiary: #d8c7b3; 
+    --text-primary: #5b4636;
+    --message-error-bg: #ffcdd2;
+    --message-error-text: #b71c1c;
+    --message-error-border: #ef9a9a;
+    --message-success-bg: #dcedc8;
+    --message-success-text: #33691e;
+    --message-success-border: #c5e1a5;
+}
+
+.task-project-badge {
+    font-size: 0.75em;
+    margin-left: 8px;
+    padding: 1px 5px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    display: inline-block; /* Ensures padding and margin are respected properly */
+    vertical-align: middle; /* Aligns badge nicely with text */
 }
