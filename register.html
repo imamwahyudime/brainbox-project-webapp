@@ -5,64 +5,133 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - Brainstorm & Timebox Pro</title>
     <link rel="stylesheet" href="style.css">
-    
+    <style>
+        /* Basic styling for initially hidden elements */
+        .hidden {
+            display: none;
+        }
+        /* Add some spacing for the new verification section if needed */
+        .verification-section {
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body class="auth-page" data-theme="light">
 <script>
+  // Early theme application from localStorage
   (function() {
     try {
       var StoredTheme = localStorage.getItem('brainboxProTheme');
       if (StoredTheme) {
         document.body.setAttribute('data-theme', StoredTheme);
       }
-      // If no theme is in localStorage, it will default to what's in your HTML:
-      // <body data-theme="light"> which is the desired fallback.
     } catch(e) {
-      // In case of any error (e.g., localStorage disabled in very strict environments)
-      // it will just fall back to the default theme. You can log this if needed.
       console.warn('Could not apply theme from localStorage early:', e);
     }
   })();
 </script>
+
     <div class="auth-container">
-        <h1>Register</h1>
-        <form id="register-form" class="auth-form">
-            <div>
-                <label for="reg-username">Username:</label>
-                <input type="text" id="reg-username" name="username" required>
-            </div>
-            <div>
-                <label for="reg-email">Email:</label>
-                <input type="email" id="reg-email" name="email" required>
-            </div>
-            <div>
-                <label for="reg-password">Password:</label>
-                <input type="password" id="reg-password" name="password" required>
-            </div>
-            <div>
-                <label for="reg-confirm-password">Confirm Password:</label>
-                <input type="password" id="reg-confirm-password" name="confirm_password" required>
-            </div>
-            <button type="submit">Register</button>
-        </form>
-        <div id="register-message" class="auth-message"></div>
-        <p class="switch-auth">
-            Already have an account? <a href="login.html">Login here</a>
-        </p>
+        <div id="verification-section" class="verification-section">
+            <h1>Enter Verification Code</h1>
+            <form id="verification-form" class="auth-form">
+                <div>
+                    <label for="verification-code">Verification Code:</label>
+                    <input type="password" id="verification-code" name="verification_code" required>
+                </div>
+                <button type="submit">Verify Code</button>
+            </form>
+            <div id="verification-message" class="auth-message"></div>
+        </div>
+
+        <div id="registration-section" class="hidden">
+            <h1>Register</h1>
+            <form id="register-form" class="auth-form">
+                <div>
+                    <label for="reg-username">Username:</label>
+                    <input type="text" id="reg-username" name="username" required>
+                </div>
+                <div>
+                    <label for="reg-email">Email:</label>
+                    <input type="email" id="reg-email" name="email" required>
+                </div>
+                <div>
+                    <label for="reg-password">Password:</label>
+                    <input type="password" id="reg-password" name="password" required>
+                </div>
+                <div>
+                    <label for="reg-confirm-password">Confirm Password:</label>
+                    <input type="password" id="reg-confirm-password" name="confirm_password" required>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <div id="register-message" class="auth-message"></div>
+            <p class="switch-auth">
+                Already have an account? <a href="login.html">Login here</a>
+            </p>
+        </div>
     </div>
 
     <script>
-        // Basic theme handling for registration page
+        // Theme handling (ensure it's applied)
         const storedThemeForRegister = localStorage.getItem('brainboxProTheme') || 'light';
         document.body.dataset.theme = storedThemeForRegister;
 
-        document.getElementById('register-form').addEventListener('submit', async (event) => {
+        const verificationSection = document.getElementById('verification-section');
+        const registrationSection = document.getElementById('registration-section');
+        const verificationForm = document.getElementById('verification-form');
+        const verificationMessageEl = document.getElementById('verification-message');
+        const registerForm = document.getElementById('register-form');
+        const registerMessageEl = document.getElementById('register-message');
+
+        // Handle Verification Code Submission
+        verificationForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const verificationCode = document.getElementById('verification-code').value;
+            verificationMessageEl.className = 'auth-message'; // Reset
+            verificationMessageEl.textContent = '';
+
+            if (!verificationCode) {
+                verificationMessageEl.textContent = 'Please enter the verification code.';
+                verificationMessageEl.classList.add('error');
+                return;
+            }
+
+            try {
+                const response = await fetch('verify_code.php', { // This now sets session on success
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ verification_code: verificationCode }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    verificationMessageEl.textContent = result.message;
+                    verificationMessageEl.classList.add('success');
+                    // Hide verification section and show registration form
+                    verificationSection.classList.add('hidden');
+                    registrationSection.classList.remove('hidden');
+                } else {
+                    verificationMessageEl.textContent = result.message || 'Verification failed. Invalid code.';
+                    verificationMessageEl.classList.add('error');
+                }
+            } catch (error) {
+                console.error('Verification error:', error);
+                verificationMessageEl.textContent = 'An error occurred during verification. Please try again.';
+                verificationMessageEl.classList.add('error');
+            }
+        });
+
+        // Handle Registration Form Submission (this is your original logic)
+        registerForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const username = document.getElementById('reg-username').value;
             const email = document.getElementById('reg-email').value;
             const password = document.getElementById('reg-password').value;
             const confirmPassword = document.getElementById('reg-confirm-password').value;
-            const registerMessageEl = document.getElementById('register-message');
             
             registerMessageEl.className = 'auth-message'; // Reset
             registerMessageEl.textContent = '';
@@ -80,7 +149,8 @@
             }
 
             try {
-                const response = await fetch('auth.php', { // We will create auth.php next
+                // This fetch to auth.php will now be subject to session checks on the server
+                const response = await fetch('auth.php', { 
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -93,7 +163,6 @@
                 if (response.ok && result.success) {
                     registerMessageEl.textContent = 'Registration successful! You can now login.';
                     registerMessageEl.classList.add('success');
-                    // Optionally redirect to login page after a delay
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 2000);

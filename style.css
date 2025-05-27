@@ -110,10 +110,10 @@ body[data-theme="sepia"] {
     --timeline-bg: #fbf5ef;   /* Light cream for timeline background */
     --button-secondary-bg: #a1887f; /* Muted brown for secondary buttons */
     --button-secondary-hover-bg: #8d6e63;
-    --list-item-bg: #e6dacb; 
+    --list-item-bg: #e6dacb;
     --list-item-hover-bg: #d7ccc8;
     --list-item-border: #c1b4a6;
-    --message-success-bg: #dcedc8; 
+    --message-success-bg: #dcedc8;
     --message-success-text: #33691e;
     --message-success-border: #c5e1a5;
     --message-error-bg: #ffcdd2;
@@ -144,11 +144,11 @@ body {
 
 /* Wrapper for the main app content below the header */
 #app-content-wrapper {
-    width: 100%; 
+    width: 100%;
     display: flex;
-    justify-content: center; 
-    flex-grow: 1; 
-    padding: 0 10px; 
+    justify-content: center;
+    flex-grow: 1;
+    padding: 0 10px;
 }
 
 
@@ -161,7 +161,7 @@ body {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 5px var(--shadow-primary);
-    position: sticky;
+    position: sticky; /* Default for desktop */
     top: 0;
     z-index: 1100;
     border-bottom: 1px solid var(--border-primary);
@@ -286,16 +286,16 @@ select {
 /* App Layout */
 .app-container {
     display: flex;
-    width: 95%; 
-    max-width: 1500px; 
+    width: 95%;
+    max-width: 1500px;
     background-color: var(--bg-primary);
     box-shadow: 0 2px 10px var(--shadow-primary);
     border-radius: 8px;
-    min-height: calc(100vh - 100px); 
-    overflow: hidden; 
+    height: 740px;
+    overflow: hidden;
     transition: background-color 0.3s ease;
-    margin-top: 20px; 
-    margin-bottom: 20px; 
+    margin-top: 20px;
+    margin-bottom: 20px;
 }
 
 /* Task & Project Container (Left Panel) */
@@ -349,7 +349,7 @@ select {
     list-style: none;
     padding: 0;
     flex-grow: 1;
-    overflow-y: auto;
+    /*overflow-y: auto;*/
     max-height: calc(100vh - 300px);
     padding-right: 5px;
 }
@@ -414,24 +414,24 @@ select {
     padding-left: 70px; /* Space for hour labels */
     transition: background-color 0.3s ease, border-color 0.3s ease;
 }
-.hour-slot { 
+.hour-slot {
     height: 60px; /* 60 minutes = 60 pixels */
-    position: relative; 
-    box-sizing: border-box; 
+    position: relative;
+    box-sizing: border-box;
     border-bottom: 1px dotted var(--border-hour-slot);
     transition: border-color 0.3s ease, background-color 0.1s ease;
 }
 .hour-slot:last-child { border-bottom: none; }
-.hour-label { 
-    position: absolute; 
-    top: -10px; 
-    left: -70px; 
-    font-size: 0.8em; 
-    color: var(--text-muted); 
-    width: 65px; 
-    text-align: right; 
-    user-select: none; 
-    transition: color 0.3s ease; 
+.hour-label {
+    position: absolute;
+    top: -10px;
+    left: -70px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    width: 65px;
+    text-align: right;
+    user-select: none;
+    transition: color 0.3s ease;
 }
 .hour-slot.drop-target { background-color: var(--drop-target-bg); }
 
@@ -473,7 +473,7 @@ select {
 .modal {
     display: none;
     position: fixed;
-    z-index: 1050;
+    z-index: 1150;
     left: 0;
     top: 0;
     width: 100%;
@@ -495,18 +495,18 @@ select {
     transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 #project-management-modal .modal-content,
-#all-tasks-modal .modal-content { 
-    max-width: 700px; 
+#all-tasks-modal .modal-content {
+    max-width: 700px;
 }
 #all-tasks-modal .modal-content {
-    max-width: 800px; 
-    max-height: 80vh; 
-    display: flex; 
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
     flex-direction: column;
 }
-#all-tasks-modal .modal-body { 
+#all-tasks-modal .modal-body {
     overflow-y: auto;
-    padding-right: 15px; 
+    padding-right: 15px;
 }
 
 
@@ -606,7 +606,7 @@ select {
     border: 1px solid var(--border-secondary);
     border-radius: 5px;
 }
-#all-tasks-list-container .project-task-group h4 { 
+#all-tasks-list-container .project-task-group h4 {
     background-color: var(--all-tasks-project-header-bg);
     color: var(--text-primary);
     padding: 10px 15px;
@@ -616,15 +616,15 @@ select {
     border-top-right-radius: 4px;
     font-size: 1.1em;
 }
-#all-tasks-list-container ul.all-tasks-list { 
+#all-tasks-list-container ul.all-tasks-list {
     list-style: none;
-    padding: 0 15px 10px 15px; 
+    padding: 0 15px 10px 15px;
     margin:0;
-    max-height: none; 
-    overflow-y: visible; 
+    max-height: none;
+    overflow-y: visible;
 }
 #all-tasks-list-container ul.all-tasks-list li {
-    background-color: var(--bg-primary); 
+    background-color: var(--bg-primary);
     word-break: break-word;
     /* Other properties inherited from .modal ul li like padding, margin, display flex */
 }
@@ -643,7 +643,7 @@ select {
     color: var(--text-muted);
 }
 #all-tasks-list-container ul.all-tasks-list li.scheduled-in-list::before {
-    content: '🕒'; 
+    content: '🕒';
     margin-right: 8px;
     font-size: 0.9em;
 }
@@ -711,16 +711,20 @@ select {
 }
 
 
-/* Responsive adjustments */
+/* Responsive adjustments for the main application */
 @media (max-width: 768px) {
     #app-content-wrapper {
-        padding: 0; 
+        padding: 0;
+        /* Account for header if it were sticky and had a fixed known height */
+        /* padding-top: var(--mobile-header-height, 70px); */ /* Example if header was sticky */
     }
     .app-header {
+        position: static; /* Changed from sticky for mobile to allow scrolling */
         flex-direction: column;
         align-items: flex-start;
         padding: 10px 15px;
         gap: 10px;
+        /* No longer need to define a fixed height for calc() if header is static */
     }
     .app-header h1 { margin-bottom: 5px; }
     .controls { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
@@ -729,11 +733,15 @@ select {
 
     .app-container {
         flex-direction: column;
-        width: 100%; 
-        margin-top: 0; 
+        width: 100%;
+        margin-top: 0; /* Takes full space now header is static */
         margin-bottom: 0;
         border-radius: 0;
-        min-height: calc(100vh - var(--header-height, 120px)); 
+        min-height: 100vh; /* Simpler min-height as header scrolls */
+        /* If header was sticky, this would need padding-top:
+           padding-top: var(--calculated-mobile-header-height);
+           min-height: calc(100vh - var(--calculated-mobile-header-height));
+        */
     }
     .task-project-container, .schedule-container {
         width: 100%;
@@ -742,7 +750,7 @@ select {
         min-width: unset;
     }
     .task-project-container { max-height: 45vh; overflow-y: auto; }
-    #task-list { max-height: calc(45vh - 150px); }
+    #task-list { max-height: calc(45vh - 150px); } /* Adjust based on surrounding elements */
     .schedule-container { min-height: 50vh; }
 
     #schedule-timeline { padding-left: 55px; }
@@ -750,24 +758,20 @@ select {
 
     .modal-content {
         margin: 5% auto;
+        margin-top: 10%;
         padding: 20px;
         width: 95%;
     }
     #project-management-modal .modal-content,
-    #all-tasks-modal .modal-content { 
+    #all-tasks-modal .modal-content {
         max-width: 95%;
     }
     .modal-content h3 { font-size: 1.2em; }
     .modal-content button:not(.button-small):not(.task-actions button) {
-        display: block;
-        width: 100%;
         margin-bottom: 10px;
     }
-    #edit-task-modal .modal-actions button { /* Ensure edit task modal buttons stack nicely */
-        width: auto; /* Let flexbox handle width based on content and flex-grow */
-    }
-    .modal-content button:not(:last-child):not(.button-small):not(.task-actions button) {
-        margin-right: 0;
+    #edit-task-modal .modal-actions button {
+        width: auto;
     }
     .modal form { flex-direction: column; align-items: stretch; }
     .modal form input[type="text"] { margin-bottom: 10px; }
@@ -786,7 +790,7 @@ select {
     #new-task-input { font-size: 0.9em; }
     #add-task-button { font-size: 0.9em; padding: 8px 10px; }
     .task-project-container { max-height: 50vh; }
-    #task-list { max-height: calc(50vh - 160px); }
+    #task-list { max-height: calc(50vh - 160px); } /* Adjust based on surrounding elements */
 }
 
 /* --- Authentication Page Styles --- */
@@ -796,6 +800,7 @@ body.auth-page {
     align-items: center;
     min-height: 100vh;
     background-color: var(--bg-secondary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 .auth-container {
@@ -806,12 +811,19 @@ body.auth-page {
     width: 100%;
     max-width: 400px;
     text-align: center;
+    box-sizing: border-box;
 }
 
 .auth-container h1 {
     color: var(--accent-primary);
     margin-bottom: 25px;
     font-size: 1.8em;
+    font-weight: 600;
+}
+
+.auth-form div {
+    margin-bottom: 20px;
+    text-align: left;
 }
 
 .auth-form label {
@@ -820,19 +832,22 @@ body.auth-page {
     margin-bottom: 8px;
     color: var(--text-secondary);
     font-weight: 500;
+    font-size: 1em;
 }
 
 .auth-form input[type="text"],
 .auth-form input[type="email"],
 .auth-form input[type="password"] {
     width: 100%;
-    padding: 12px;
+    padding: 12px 15px;
     margin-bottom: 20px;
     border: 1px solid var(--border-secondary);
-    border-radius: 5px;
+    border-radius: 6px;
     background-color: var(--bg-tertiary);
     color: var(--text-primary);
     font-size: 1em;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-form input[type="text"]:focus,
@@ -840,31 +855,32 @@ body.auth-page {
 .auth-form input[type="password"]:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px rgba(92, 103, 242, 0.2); /* Light theme focus */
+    box-shadow: 0 0 0 2px rgba(92, 103, 242, 0.2);
 }
 body[data-theme="dark"] .auth-form input[type="text"]:focus,
 body[data-theme="dark"] .auth-form input[type="email"]:focus,
 body[data-theme="dark"] .auth-form input[type="password"]:focus {
-    box-shadow: 0 0 0 2px rgba(114, 137, 218, 0.3); /* Dark theme focus */
+    box-shadow: 0 0 0 2px rgba(114, 137, 218, 0.3);
 }
 body[data-theme="sepia"] .auth-form input[type="text"]:focus,
 body[data-theme="sepia"] .auth-form input[type="email"]:focus,
 body[data-theme="sepia"] .auth-form input[type="password"]:focus {
-    box-shadow: 0 0 0 2px rgba(141, 110, 99, 0.3); /* Sepia theme focus */
+    box-shadow: 0 0 0 2px rgba(141, 110, 99, 0.3);
 }
 
 
 .auth-form button {
     width: 100%;
-    padding: 12px;
+    padding: 12px 15px;
     background-color: var(--accent-primary);
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 1.1em;
-    font-weight: 500;
+    font-weight: 600;
     transition: background-color 0.2s ease;
+    margin-top: 10px;
 }
 
 .auth-form button:hover {
@@ -872,19 +888,17 @@ body[data-theme="sepia"] .auth-form input[type="password"]:focus {
 }
 
 .auth-message {
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: 5px;
-    font-size: 0.9em;
-    /* display: none; */ /* JS will handle display by adding/removing class */
-    visibility: hidden; /* Hide by default, JS adds success/error class to show */
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.95em;
+    visibility: hidden;
     opacity: 0;
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .auth-message.error,
 .auth-message.success {
-    /* display: block; */ /* Replaced by visibility */
     visibility: visible;
     opacity: 1;
 }
@@ -900,23 +914,93 @@ body[data-theme="sepia"] .auth-form input[type="password"]:focus {
 }
 
 .switch-auth {
-    margin-top: 20px;
-    font-size: 0.9em;
+    margin-top: 25px;
+    font-size: 0.95em;
 }
 
 .switch-auth a {
     color: var(--accent-primary);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .switch-auth a:hover {
     text-decoration: underline;
 }
 
-/* --- Auth Page Specific Theme Overrides --- */
-/* These ensure that auth pages also reflect the chosen theme variables if data-theme is set on body */
-body[data-theme="light"].auth-page { /* Default values, already defined in :root but good for clarity */
+.hidden {
+    display: none !important;
+}
+
+/* --- Mobile Specific Styles FOR AUTH PAGES --- */
+@media (max-width: 768px) {
+    body.auth-page {
+        display: block;
+    }
+
+    .auth-page .auth-container {
+        max-width: 100%;
+        min-height: 100vh;
+        padding: 20px;
+        border-radius: 0;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .auth-page .auth-container h1 {
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    .auth-page .auth-form label {
+        font-size: 0.95em;
+        margin-bottom: 6px;
+    }
+
+    .auth-page .auth-form input[type="text"],
+    .auth-page .auth-form input[type="email"],
+    .auth-page .auth-form input[type="password"] {
+        padding: 14px 15px;
+        font-size: 1em;
+    }
+
+    .auth-page .auth-form button {
+        padding: 14px 15px;
+        font-size: 1.05em;
+    }
+
+    .auth-page .auth-message {
+        font-size: 0.9em;
+    }
+
+    .auth-page .switch-auth {
+        font-size: 0.9em;
+    }
+
+    .auth-page .verification-section {
+        margin-bottom: 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-page .auth-container {
+        padding: 15px;
+    }
+
+    .auth-page .auth-container h1 {
+        font-size: 22px;
+    }
+
+    .auth-page .auth-form div {
+        margin-bottom: 15px;
+    }
+}
+
+
+/* --- Auth Page Specific Theme Overrides (from user's original CSS) --- */
+body[data-theme="light"].auth-page {
     --bg-secondary: #f4f4f4;
     --bg-primary: #ffffff;
     --shadow-primary: rgba(0, 0, 0, 0.1);
@@ -924,7 +1008,7 @@ body[data-theme="light"].auth-page { /* Default values, already defined in :root
     --accent-primary-hover: #4a54cc;
     --text-secondary: #555555;
     --border-secondary: #dddddd;
-    --bg-tertiary: #e9e9e9; /* Used for input backgrounds on auth form */
+    --bg-tertiary: #e9e9e9;
     --text-primary: #333333;
     --message-error-bg: #f8d7da;
     --message-error-text: #721c24;
@@ -960,7 +1044,7 @@ body[data-theme="sepia"].auth-page {
     --accent-primary-hover: #795548;
     --text-secondary: #795548;
     --border-secondary: #bcaaa4;
-    --bg-tertiary: #d8c7b3; 
+    --bg-tertiary: #d8c7b3;
     --text-primary: #5b4636;
     --message-error-bg: #ffcdd2;
     --message-error-text: #b71c1c;
@@ -977,6 +1061,10 @@ body[data-theme="sepia"].auth-page {
     background-color: var(--bg-tertiary);
     color: var(--text-secondary);
     border-radius: 4px;
-    display: inline-block; /* Ensures padding and margin are respected properly */
-    vertical-align: middle; /* Aligns badge nicely with text */
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.hidden {
+    display: none !important;
 }
