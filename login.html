@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Brainstorm & Timebox Pro</title>
+    <link rel="stylesheet" href="style.css">
+    
+</head>
+<body class="auth-page" data-theme="light"> <div class="auth-container">
+        <h1>Login</h1>
+        <form id="login-form" class="auth-form">
+            <div>
+                <label for="username">Username or Email:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Login</button>
+        </form>
+        <div id="login-message" class="auth-message"></div>
+        <p class="switch-auth">
+            Don't have an account? <a href="register.html">Register here</a>
+        </p>
+    </div>
+
+    <script>
+        // Basic theme handling for login page (can be expanded)
+        const storedTheme = localStorage.getItem('brainboxProTheme') || 'light';
+        document.body.dataset.theme = storedTheme;
+
+        document.getElementById('login-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loginMessageEl = document.getElementById('login-message');
+            loginMessageEl.className = 'auth-message'; // Reset
+            loginMessageEl.textContent = '';
+
+            try {
+                const response = await fetch('auth.php', { // We will create auth.php next
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ action: 'login', username, password }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Store session/token if applicable (PHP will handle session cookies)
+                    loginMessageEl.textContent = 'Login successful! Redirecting...';
+                    loginMessageEl.classList.add('success');
+                    // Redirect to the main app page
+                    window.location.href = 'index.html'; 
+                } else {
+                    loginMessageEl.textContent = result.message || 'Login failed. Please check your credentials.';
+                    loginMessageEl.classList.add('error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                loginMessageEl.textContent = 'An error occurred. Please try again.';
+                loginMessageEl.classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>

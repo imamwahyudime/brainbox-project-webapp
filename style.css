@@ -37,6 +37,7 @@
     --message-error-bg: #f8d7da;
     --message-error-text: #721c24;
     --message-error-border: #f5c6cb;
+    --all-tasks-project-header-bg: var(--bg-tertiary); /* For new modal */
 }
 
 body[data-theme="dark"] {
@@ -77,9 +78,10 @@ body[data-theme="dark"] {
     --message-error-bg: #5a2a2e;
     --message-error-text: #f5c6cb;
     --message-error-border: #8b3e46;
+    --all-tasks-project-header-bg: var(--bg-tertiary); /* For new modal */
 }
 
-/* Basic Reset & Body Styling (from Brainbox) */
+/* Basic Reset & Body Styling */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -93,13 +95,23 @@ body {
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
-    align-items: center;
+    /* align-items: center; /* REMOVED this to allow children to expand fully */
     min-height: 100vh;
     padding-top: 0;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* App Header (from Brainbox) */
+/* Wrapper for the main app content below the header */
+#app-content-wrapper {
+    width: 100%; /* Ensure it takes full width */
+    display: flex;
+    justify-content: center; /* This will center the app-container if it has a max-width */
+    flex-grow: 1; /* Allow it to take available vertical space */
+    padding: 0 10px; /* Add some padding so app-container isn't flush with screen edges */
+}
+
+
+/* App Header */
 .app-header {
     width: 100%;
     background-color: var(--bg-primary);
@@ -108,10 +120,10 @@ body {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 5px var(--shadow-primary);
-    margin-bottom: 20px;
+    /* margin-bottom: 20px; /* This margin is now on app-container or app-content-wrapper could have padding-top */
     position: sticky;
     top: 0;
-    z-index: 1100; /* Higher z-index */
+    z-index: 1100;
     border-bottom: 1px solid var(--border-primary);
 }
 
@@ -158,10 +170,10 @@ body {
     background-color: var(--accent-primary-hover);
 }
 
-.controls button.button-secondary, /* From Brainbox */
+.controls button.button-secondary,
 .modal-content button.button-secondary {
     background-color: var(--button-secondary-bg);
-    color: var(--text-primary); /* Ensure text is primary for better contrast on some themes */
+    color: var(--text-primary);
 }
 .controls button.button-secondary:hover,
 .modal-content button.button-secondary:hover {
@@ -173,7 +185,7 @@ body {
     fill: currentColor;
 }
 
-h2, h3, h4 { /* Added h4 */
+h2, h3, h4 {
     margin-bottom: 15px;
     color: var(--text-secondary);
     font-weight: 500;
@@ -181,7 +193,7 @@ h2, h3, h4 { /* Added h4 */
 h4 { margin-top: 15px; font-size: 1.05em; }
 
 
-/* General Button Styles (Delete, Recover - adapted from Project Management CSS) */
+/* General Button Styles */
 button.delete-button, button.permanent-delete-btn {
     background-color: var(--accent-delete);
     color: white;
@@ -203,12 +215,14 @@ button:disabled {
 }
 
 
-/* Inputs and Textareas (from Brainbox) */
+/* Inputs and Textareas */
 input[type="text"],
 input[type="time"],
 input[type="number"],
+input[type="email"],
+input[type="password"],
 textarea,
-select { /* Added general select styling here */
+select {
     padding: 8px;
     border: 1px solid var(--border-secondary);
     background-color: var(--bg-primary);
@@ -219,22 +233,24 @@ select { /* Added general select styling here */
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* App Layout (from Brainbox) */
+/* App Layout */
 .app-container {
     display: flex;
-    width: 95%;
-    max-width: 1500px;
+    width: 95%; /* Will be 95% of the app-content-wrapper */
+    max-width: 1500px; /* Still good to have a max-width for very large screens */
     background-color: var(--bg-primary);
     box-shadow: 0 2px 10px var(--shadow-primary);
     border-radius: 8px;
-    min-height: calc(100vh - 100px);
-    overflow: hidden;
+    min-height: calc(100vh - 100px); /* Adjust based on header and potential footer */
+    overflow: hidden; /* Important to contain children */
     transition: background-color 0.3s ease;
+    margin-top: 20px; /* Add space between header and this container */
+    margin-bottom: 20px; /* Space at the bottom */
 }
 
-/* Task & Project Container (Left Panel - Repurposed task-list-container from Brainbox) */
+/* Task & Project Container (Left Panel) */
 .task-project-container {
-    width: 35%; /* Can be adjusted */
+    width: 35%;
     min-width: 320px;
     padding: 20px;
     border-right: 1px solid var(--border-primary);
@@ -248,26 +264,26 @@ select { /* Added general select styling here */
     gap: 10px;
     align-items: center;
     margin-bottom: 15px;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    flex-wrap: wrap;
 }
 .project-selector-area label {
     font-size: 0.9em;
     color: var(--text-secondary);
-    margin-bottom: 0; /* Override default label margin if any */
+    margin-bottom: 0;
 }
 #project-filter-select {
     flex-grow: 1;
-    min-width: 150px; /* Ensure it doesn't get too small */
-    margin-bottom: 0; /* Remove default margin for select */
+    min-width: 150px;
+    margin-bottom: 0;
 }
-.button-small { /* For Manage Projects and Task Bin buttons */
+.button-small {
     padding: 6px 10px !important;
     font-size: 0.8em !important;
-    flex-shrink: 0; /* Prevent shrinking */
+    flex-shrink: 0;
 }
 
 
-/* Add Task Section (from Brainbox) */
+/* Add Task Section */
 .add-task {
     display: flex;
     margin-bottom: 20px;
@@ -278,17 +294,17 @@ select { /* Added general select styling here */
     margin-bottom: 0;
 }
 
-/* Task List (in Left Panel - adapted from Brainbox #task-list) */
+/* Task List (in Left Panel) */
 #task-list {
     list-style: none;
     padding: 0;
     flex-grow: 1;
     overflow-y: auto;
-    max-height: calc(100vh - 300px); /* Adjust based on other elements in this panel */
+    max-height: calc(100vh - 300px);
     padding-right: 5px;
 }
 
-#task-list li { /* Re-styling task-item for combined features */
+#task-list li {
     background-color: var(--bg-tertiary);
     padding: 10px 12px;
     margin-bottom: 8px;
@@ -296,40 +312,40 @@ select { /* Added general select styling here */
     border-radius: 4px;
     display: flex;
     align-items: center;
-    gap: 8px; /* Spacing between checkbox, text, buttons */
+    gap: 8px;
     transition: background-color 0.2s ease, border-color 0.3s ease;
 }
 #task-list li:hover {
     border-color: var(--accent-primary);
 }
-#task-list li.dragging { /* from Brainbox */
+#task-list li.dragging {
     opacity: 0.5;
     background-color: var(--accent-primary);
     color: white;
 }
 #task-list li input[type="checkbox"] {
-    width: auto; /* Override full width for checkbox */
+    width: auto;
     margin-bottom: 0;
     cursor: pointer;
     transform: scale(1.1);
 }
-#task-list li .task-text-content { /* Span for task text */
+#task-list li .task-text-content {
     flex-grow: 1;
-    cursor: grab; /* For dragging */
-    word-break: break-word; /* Prevent long text from breaking layout */
+    cursor: grab;
+    word-break: break-word;
 }
 #task-list li.completed .task-text-content {
     text-decoration: line-through;
     color: var(--text-muted);
 }
-#task-list li .task-actions button { /* Common style for buttons in task item */
+#task-list li .task-actions button {
     padding: 5px 8px;
     font-size: 0.75em;
-    margin-left: 4px; /* Small gap between buttons */
+    margin-left: 4px;
 }
 
 
-/* Schedule Section (Right Panel - from Brainbox) */
+/* Schedule Section (Right Panel) */
 .schedule-container {
     width: 65%;
     padding: 20px;
@@ -338,7 +354,7 @@ select { /* Added general select styling here */
     flex-direction: column;
 }
 
-#schedule-timeline { /* From Brainbox */
+#schedule-timeline {
     position: relative;
     height: 1440px;
     background-color: var(--timeline-bg);
@@ -348,18 +364,29 @@ select { /* Added general select styling here */
     padding-left: 70px;
     transition: background-color 0.3s ease, border-color 0.3s ease;
 }
-.hour-slot, .hour-label, .hour-slot.drop-target { /* From Brainbox */
-    /* Styles are mostly fine from Brainbox, ensure theme variables are used */
+.hour-slot { 
+    height: 60px; 
+    position: relative; 
+    box-sizing: border-box; 
     border-bottom: 1px dotted var(--border-hour-slot);
     transition: border-color 0.3s ease, background-color 0.1s ease;
 }
-.hour-slot { height: 60px; position: relative; box-sizing: border-box; }
 .hour-slot:last-child { border-bottom: none; }
-.hour-label { position: absolute; top: -10px; left: -70px; font-size: 0.8em; color: var(--text-muted); width: 65px; text-align: right; user-select: none; transition: color 0.3s ease; }
+.hour-label { 
+    position: absolute; 
+    top: -10px; 
+    left: -70px; 
+    font-size: 0.8em; 
+    color: var(--text-muted); 
+    width: 65px; 
+    text-align: right; 
+    user-select: none; 
+    transition: color 0.3s ease; 
+}
 .hour-slot.drop-target { background-color: var(--drop-target-bg); }
 
 
-/* Scheduled Task Styling on Timeline (from Brainbox) */
+/* Scheduled Task Styling on Timeline */
 .scheduled-task {
     position: absolute;
     left: 5px;
@@ -373,7 +400,7 @@ select { /* Added general select styling here */
     font-size: 0.8em;
     overflow: hidden;
     cursor: pointer;
-    z-index: 100; /* Slightly lower than header */
+    z-index: 100;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -387,11 +414,11 @@ select { /* Added general select styling here */
 .scheduled-task .task-time { font-size: 0.9em; opacity: 0.8; white-space: nowrap; }
 
 
-/* Modal Styling (Base from Brainbox, with additions) */
+/* Modal Styling */
 .modal {
     display: none;
     position: fixed;
-    z-index: 1050; /* Below header but above most content */
+    z-index: 1050;
     left: 0;
     top: 0;
     width: 100%;
@@ -406,16 +433,29 @@ select { /* Added general select styling here */
     padding: 25px 30px;
     border: 1px solid var(--border-secondary);
     width: 90%;
-    max-width: 550px; /* Default max-width */
+    max-width: 550px;
     border-radius: 8px;
     position: relative;
     box-shadow: 0 5px 15px var(--shadow-primary);
     transition: background-color 0.3s ease, border-color 0.3s ease;
 }
-/* Larger modal for Project Management */
-#project-management-modal .modal-content {
-    max-width: 700px;
+/* Larger modal for Project Management & All Tasks */
+#project-management-modal .modal-content,
+#all-tasks-modal .modal-content { /* Added #all-tasks-modal */
+    max-width: 700px; /* Default for these larger modals */
 }
+/* Specific larger width for All Tasks modal if needed, can be same or different */
+#all-tasks-modal .modal-content {
+    max-width: 800px; /* Example: Make All Tasks modal wider */
+    max-height: 80vh; /* Allow scrolling within modal content */
+    display: flex; /* Allow internal scrolling for content */
+    flex-direction: column;
+}
+#all-tasks-modal .modal-body { /* New class for scrollable content in All Tasks modal */
+    overflow-y: auto;
+    padding-right: 15px; /* For scrollbar */
+}
+
 
 .close-button {
     color: var(--text-muted);
@@ -434,11 +474,11 @@ select { /* Added general select styling here */
     cursor: pointer;
 }
 
-/* Modal Specifics: Edit/Schedule Task Modal (Brainbox - minor adjustments if any) */
+/* Modal Specifics: Edit/Schedule Task Modal */
 #edit-task-modal #modal-task-name-display { font-weight: bold; }
 #edit-task-modal button:not(:last-child) { margin-right: 10px; }
 
-/* Modal Specifics: About Modal (Brainbox - minor adjustments if any) */
+/* Modal Specifics: About Modal */
 #about-modal .modal-content p { margin-bottom: 10px; line-height: 1.5; }
 #about-modal .modal-content a { color: var(--accent-primary); text-decoration: none; }
 #about-modal .modal-content a:hover { text-decoration: underline; }
@@ -455,10 +495,10 @@ select { /* Added general select styling here */
 .modal .list-section h4 {
     margin-bottom: 10px;
 }
-.modal ul { /* General list styling for modals */
+.modal ul {
     list-style: none;
     padding: 0;
-    max-height: 250px; /* Prevent overly long lists in modals */
+    max-height: 250px;
     overflow-y: auto;
 }
 .modal ul li {
@@ -475,7 +515,7 @@ select { /* Added general select styling here */
 .modal ul li:hover {
     background-color: var(--list-item-hover-bg);
 }
-.modal ul li .item-name { /* For project name or task text in modal lists */
+.modal ul li .item-name {
     flex-grow: 1;
     margin-right: 10px;
     font-weight: 500;
@@ -485,12 +525,57 @@ select { /* Added general select styling here */
     font-size: 0.8em;
     margin-left: 5px;
 }
-/* Task Recycle Bin item specific styling */
 #modal-task-recycle-bin-list li .task-status-info {
     font-size: 0.8em;
     color: var(--text-muted);
-    margin-right: auto; /* Push buttons to the right */
+    margin-right: auto;
     padding-left: 10px;
+}
+
+/* Styles for All Tasks Modal */
+#all-tasks-list-container .project-task-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 5px;
+}
+#all-tasks-list-container .project-task-group h4 { /* Project Name Header */
+    background-color: var(--all-tasks-project-header-bg);
+    color: var(--text-primary);
+    padding: 10px 15px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border-secondary);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    font-size: 1.1em;
+}
+#all-tasks-list-container ul.all-tasks-list { /* List of tasks under a project */
+    list-style: none;
+    padding: 0 15px 10px 15px; /* Padding inside the group */
+    margin:0;
+    max-height: none; /* Override general modal ul max-height if needed */
+    overflow-y: visible; /* Let modal body handle scroll */
+}
+#all-tasks-list-container ul.all-tasks-list li {
+    background-color: var(--bg-primary); /* Slightly different from other modal lists for contrast */
+    /* padding: 8px 10px; */ /* Already has padding from general modal ul li */
+    /* margin-bottom: 6px; */ /* Already has margin from general modal ul li */
+    /* display: flex; */ /* Already flex */
+    /* align-items: center; */ /* Already aligned */
+    /* justify-content: flex-start; */ /* Override default justify for these items */
+    word-break: break-word;
+}
+#all-tasks-list-container ul.all-tasks-list li .task-text-all {
+    /* flex-grow: 1; */ /* Not needed if no actions */
+}
+#all-tasks-list-container ul.all-tasks-list li.scheduled-in-list::before {
+    content: '🕒'; /* Clock emoji for scheduled tasks */
+    margin-right: 8px;
+    font-size: 0.9em;
+}
+#all-tasks-list-container #no-all-tasks-message {
+    padding: 15px;
+    text-align: center;
+    color: var(--text-muted);
 }
 
 
@@ -513,11 +598,10 @@ select { /* Added general select styling here */
     color: var(--message-error-text);
     border: 1px solid var(--message-error-border);
 }
-/* Specific message elements if needed for positioning (like in forms) */
 #project-form-message { margin-top: 5px; }
 
 
-/* Modal Buttons General (from Brainbox, ensure consistency) */
+/* Modal Buttons General */
 .modal-content button {
     padding: 10px 15px;
     border-radius: 4px;
@@ -525,9 +609,8 @@ select { /* Added general select styling here */
     cursor: pointer;
     font-size: 0.95em;
     transition: background-color 0.2s ease;
-    color: white; /* Default for primary action buttons */
+    color: white;
 }
-/* Primary save button in edit task modal */
 #modal-save-task-button {
     background-color: var(--accent-primary);
 }
@@ -542,19 +625,22 @@ select { /* Added general select styling here */
 }
 .modal form input[type="text"] {
     flex-grow: 1;
-    margin-bottom: 0; /* Override if needed */
+    margin-bottom: 0;
 }
-.modal form button { /* Submit button in modal forms */
+.modal form button {
     flex-shrink: 0;
-    background-color: var(--accent-primary); /* Default to primary action */
+    background-color: var(--accent-primary);
 }
 .modal form button:hover {
     background-color: var(--accent-primary-hover);
 }
 
 
-/* Responsive adjustments (from Brainbox, may need further tuning) */
+/* Responsive adjustments */
 @media (max-width: 768px) {
+    #app-content-wrapper {
+        padding: 0; /* Remove padding on mobile so app-container can be 100% */
+    }
     .app-header {
         flex-direction: column;
         align-items: flex-start;
@@ -568,10 +654,11 @@ select { /* Added general select styling here */
 
     .app-container {
         flex-direction: column;
-        width: 100%;
-        margin: 0;
+        width: 100%; /* Full width on mobile */
+        margin-top: 0; /* Remove top margin on mobile if header is part of viewport height calculations */
+        margin-bottom: 0;
         border-radius: 0;
-        min-height: calc(100vh - var(--header-height, 120px));
+        min-height: calc(100vh - var(--header-height, 120px)); /* Adjust based on actual header height */
     }
     .task-project-container, .schedule-container {
         width: 100%;
@@ -580,7 +667,7 @@ select { /* Added general select styling here */
         min-width: unset;
     }
     .task-project-container { max-height: 45vh; overflow-y: auto; }
-    #task-list { max-height: calc(45vh - 150px); /* Adjust based on elements above it */ }
+    #task-list { max-height: calc(45vh - 150px); }
     .schedule-container { min-height: 50vh; }
 
     #schedule-timeline { padding-left: 55px; }
@@ -591,11 +678,12 @@ select { /* Added general select styling here */
         padding: 20px;
         width: 95%;
     }
-    #project-management-modal .modal-content {
-        max-width: 95%; /* Allow it to use more width on mobile */
+    #project-management-modal .modal-content,
+    #all-tasks-modal .modal-content { /* Added #all-tasks-modal */
+        max-width: 95%;
     }
     .modal-content h3 { font-size: 1.2em; }
-    .modal-content button:not(.button-small):not(.task-actions button) { /* Stack main modal buttons, not tiny ones */
+    .modal-content button:not(.button-small):not(.task-actions button) {
         display: block;
         width: 100%;
         margin-bottom: 10px;
@@ -608,7 +696,7 @@ select { /* Added general select styling here */
 
     .project-selector-area { flex-direction: column; align-items: stretch; }
     .project-selector-area select, .project-selector-area button { width: 100%; margin-bottom: 5px; }
-    #task-list li { flex-wrap: wrap; } /* Allow task items to wrap buttons */
+    #task-list li { flex-wrap: wrap; }
     #task-list li .task-actions { width: 100%; display: flex; justify-content: flex-end; margin-top: 5px; }
 }
 
@@ -621,4 +709,148 @@ select { /* Added general select styling here */
     #add-task-button { font-size: 0.9em; padding: 8px 10px; }
     .task-project-container { max-height: 50vh; }
     #task-list { max-height: calc(50vh - 160px); }
+}
+
+/* --- Authentication Page Styles --- */
+body.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--bg-secondary);
+}
+
+.auth-container {
+    background-color: var(--bg-primary);
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px var(--shadow-primary);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.auth-container h1 {
+    color: var(--accent-primary);
+    margin-bottom: 25px;
+    font-size: 1.8em;
+}
+
+.auth-form label {
+    display: block;
+    text-align: left;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.auth-form input[type="text"],
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 5px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 1em;
+}
+
+.auth-form input[type="text"]:focus,
+.auth-form input[type="email"]:focus,
+.auth-form input[type="password"]:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(92, 103, 242, 0.2);
+}
+
+.auth-form button {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.auth-form button:hover {
+    background-color: var(--accent-primary-hover);
+}
+
+.auth-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    display: none;
+}
+
+.auth-message.error {
+    background-color: var(--message-error-bg);
+    color: var(--message-error-text);
+    border: 1px solid var(--message-error-border);
+    display: block;
+}
+
+.auth-message.success {
+    background-color: var(--message-success-bg);
+    color: var(--message-success-text);
+    border: 1px solid var(--message-success-border);
+    display: block;
+}
+
+.switch-auth {
+    margin-top: 20px;
+    font-size: 0.9em;
+}
+
+.switch-auth a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.switch-auth a:hover {
+    text-decoration: underline;
+}
+
+body[data-theme="light"].auth-page {
+    --bg-secondary: #f4f4f4;
+    --bg-primary: #ffffff;
+    --shadow-primary: rgba(0, 0, 0, 0.1);
+    --accent-primary: #5c67f2;
+    --accent-primary-hover: #4a54cc;
+    --text-secondary: #555555;
+    --border-secondary: #dddddd;
+    --bg-tertiary: #e9e9e9;
+    --text-primary: #333333;
+    --message-error-bg: #f8d7da;
+    --message-error-text: #721c24;
+    --message-error-border: #f5c6cb;
+    --message-success-bg: #d4edda;
+    --message-success-text: #155724;
+    --message-success-border: #c3e6cb;
+}
+
+body[data-theme="dark"].auth-page {
+    --bg-secondary: #23272a;
+    --bg-primary: #2c2f33;
+    --shadow-primary: rgba(0, 0, 0, 0.4);
+    --accent-primary: #7289da;
+    --accent-primary-hover: #677bc4;
+    --text-secondary: #b9bbbe;
+    --border-secondary: #4f545c;
+    --bg-tertiary: #3a3e44;
+    --text-primary: #ffffff;
+    --message-error-bg: #5a2a2e;
+    --message-error-text: #f5c6cb;
+    --message-error-border: #8b3e46;
+    --message-success-bg: #2a4b37;
+    --message-success-text: #a7d7b7;
+    --message-success-border: #3e6a4f;
 }
