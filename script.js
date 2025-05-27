@@ -509,11 +509,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 tasks = tasks.map(task => {
-                    if (task.project_id === projectId && task.status !== 'deleted') { // Use task.project_id
+                    if (task.project_id === projectId && task.status !== 'deleted') { 
                         return { 
                             ...task, 
                             status: 'deleted', 
                             isScheduled: false, 
+                            is_scheduled: 0, 
                             deletedReason: 'project_soft_deleted', 
                             deletedAt: result.deletedAt || new Date().toISOString(),
                             deleted_at: result.deletedAt || new Date().toISOString()
@@ -598,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await apiRequest('permanently_delete_project', { projectId });
             if (result.success) {
                 projects = projects.filter(p => p.id !== projectId);
-                tasks = tasks.filter(task => task.project_id !== projectId); // Use task.project_id
+                tasks = tasks.filter(task => task.project_id !== projectId); 
 
                 if (appSettings.currentProjectId === projectId) {
                     renderProjectFilterDropdown(); 
@@ -627,13 +628,9 @@ document.addEventListener('DOMContentLoaded', () => {
             taskListEl.innerHTML = `<p>Select a project or create one to add tasks.</p>`;
             return;
         }
-        // --- THIS IS THE CORRECTED LINE ---
         const currentProjectTasks = tasks.filter(task => {
-            // Add individual log for detailed checking if needed
-            // console.log(`Comparing task.project_id ("${task.project_id}") with appSettings.currentProjectId ("${appSettings.currentProjectId}") for task ID ${task.id}`);
             return task.project_id === appSettings.currentProjectId && task.status === 'active';
         });
-        // --- END OF CORRECTION ---
         
         console.log('Filtered tasks for current project (' + appSettings.currentProjectId + '):', JSON.parse(JSON.stringify(currentProjectTasks)));
 
@@ -646,8 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.id = `task-${task.id}`;
                 li.dataset.taskId = task.id;
-                // Ensure task.isScheduled is checked correctly, server might send is_scheduled
-                const isScheduled = task.isScheduled || task.is_scheduled;
+                const isScheduled = task.is_scheduled; // Use snake_case from server
                 if (isScheduled) li.classList.add('scheduled-in-list');
                 li.setAttribute('draggable', 'true');
                 const checkbox = document.createElement('input');
@@ -702,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function addTask(text, projectId) {
         const newTaskData = { 
-            projectId: projectId, // This is correct, server expects `projectId` in the `task` object for adding
+            projectId: projectId, 
             text: text,
             isScheduled: false, 
             startTime: null,
@@ -713,9 +709,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const result = await apiRequest('add_task', { task: newTaskData });
             if (result.success && result.task) {
-                // Server response for task will have project_id (snake_case)
-                // Ensure client-side consistency if necessary, or handle both cases
-                // For now, assume result.task is directly usable as is from server
                 tasks.push(result.task); 
                 renderTasksForCurrentProject(); 
             } else {
@@ -816,7 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (task.deletedReason === 'task_completed') statusText = 'Completed';
 
 
-            const project = projects.find(p => p.id === task.project_id); // Use task.project_id
+            const project = projects.find(p => p.id === task.project_id); 
             statusSpan.textContent = `(${statusText} from ${project ? escapeHTML(project.name) : 'Unknown Project'})`;
             li.appendChild(statusSpan);
 
@@ -825,7 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const recoverBtn = document.createElement('button');
             recoverBtn.textContent = 'Recover';
             recoverBtn.classList.add('recover-btn');
-            const parentProject = projects.find(p => p.id === task.project_id); // Use task.project_id
+            const parentProject = projects.find(p => p.id === task.project_id); 
             if (!parentProject || parentProject.status !== 'active') {
                 recoverBtn.disabled = true;
                 recoverBtn.title = "Parent project is not active or has been deleted.";
@@ -852,7 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
              displayModalMessage(modalTaskRecycleBinMessage, 'Task not found in bin.', 'error');
              return;
         }
-        const parentProject = projects.find(p => p.id === taskToRecover.project_id); // Use task.project_id
+        const parentProject = projects.find(p => p.id === taskToRecover.project_id); 
         if (!parentProject || parentProject.status !== 'active') {
             displayModalMessage(modalTaskRecycleBinMessage, 'Cannot recover: Parent project is deleted or not active. Please recover project first if needed.', 'error');
             return;
@@ -867,7 +860,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
                 renderTaskRecycleBinList();
-                if (appSettings.currentProjectId === result.updatedTask.project_id) { // Use result.updatedTask.project_id
+                if (appSettings.currentProjectId === result.updatedTask.project_id) { 
                     renderTasksForCurrentProject();
                 }
                 renderScheduleTimeline(); 
@@ -944,21 +937,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderScheduleTimeline() {
         scheduleTimelineEl.querySelectorAll('.scheduled-task').forEach(el => el.remove()); 
-        const tasksToSchedule = tasks.filter(t => (t.isScheduled || t.is_scheduled) && t.status === 'active' && t.startTime !== null && t.duration !== null);
-        tasksToSchedule.sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0) ); 
         
-        for(let i=0; i < tasksToSchedule.length; i++) tasksToSchedule[i].isOverlapping = false;
+        // Filter tasks that should be scheduled
+        const tasksToSchedule = tasks.filter(t => {
+            const isScheduledFlag = t.is_scheduled; // Use snake_case from server
+            const hasValidTime = t.start_time !== null && typeof t.start_time === 'number' &&
+                                 t.duration !== null && typeof t.duration === 'number' && t.duration > 0;
+            return isScheduledFlag && t.status === 'active' && hasValidTime;
+        });
+
+        console.log("Tasks considered for scheduling (after filtering):", JSON.parse(JSON.stringify(tasksToSchedule)));
+
+        tasksToSchedule.sort((a, b) => (Number(a.start_time) || 0) - (Number(b.start_time) || 0) ); 
+        
+        for(let i=0; i < tasksToSchedule.length; i++) tasksToSchedule[i].isOverlapping = false; // Client-side flag
 
         for (let i = 0; i < tasksToSchedule.length; i++) {
             for (let j = i + 1; j < tasksToSchedule.length; j++) {
                 const taskA = tasksToSchedule[i];
                 const taskB = tasksToSchedule[j];
-                const startTimeA = Number(taskA.startTime);
-                const durationA = Number(taskA.duration);
-                const startTimeB = Number(taskB.startTime);
-                const durationB = Number(taskB.duration);
-
-                if (isNaN(startTimeA) || isNaN(durationA) || isNaN(startTimeB) || isNaN(durationB)) continue;
+                // Already ensured these are numbers by the filter above
+                const startTimeA = taskA.start_time;
+                const durationA = taskA.duration;
+                const startTimeB = taskB.start_time;
+                const durationB = taskB.duration;
 
                 const endTimeA = startTimeA + durationA;
                 const endTimeB = startTimeB + durationB;
@@ -971,16 +973,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tasksToSchedule.forEach(task => {
-            const taskStartTime = Number(task.startTime);
-            const taskDuration = Number(task.duration);
+            // Values are already numbers due to the filter condition
+            const taskStartTime = task.start_time;
+            const taskDuration = task.duration;
+
+            // The check below is now mostly redundant due to the filter, but kept as a safeguard
             if (isNaN(taskStartTime) || isNaN(taskDuration) || taskDuration <=0) {
-                console.warn(`Skipping rendering scheduled task ${task.id} due to invalid time/duration.`);
+                console.warn(`[Internal Safeguard] Skipping rendering scheduled task ${task.id} ("${escapeHTML(task.text)}") due to invalid time/duration. Start: ${task.start_time}, Duration: ${task.duration}`);
                 return;
             }
 
             const taskEl = document.createElement('div');
             taskEl.classList.add('scheduled-task');
-            if (task.isOverlapping) taskEl.classList.add('overlapping');
+            if (task.isOverlapping) taskEl.classList.add('overlapping'); 
             taskEl.id = `scheduled-${task.id}`;
             taskEl.dataset.taskId = task.id;
             taskEl.style.top = `${taskStartTime}px`; 
@@ -993,9 +998,12 @@ document.addEventListener('DOMContentLoaded', () => {
             timeSpan.classList.add('task-time');
             timeSpan.textContent = `${formatTime(taskStartTime)} - ${formatTime(taskStartTime + taskDuration)}`;
             taskEl.appendChild(timeSpan);
-            taskEl.addEventListener('click', () => openScheduleModal(task.id, true));
+            taskEl.addEventListener('click', () => openScheduleModal(task.id, true)); 
             scheduleTimelineEl.appendChild(taskEl);
         });
+         if (tasksToSchedule.length === 0) {
+            console.log("No tasks to render on schedule timeline after filtering.");
+        }
     }
 
     taskListEl.addEventListener('dragstart', (e) => {
@@ -1051,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const startMinutes = Math.round(rawMinutes / 15) * 15; 
 
         draggedTaskId = null; 
-        openScheduleModal(taskToSchedule.id, (taskToSchedule.isScheduled || taskToSchedule.is_scheduled), startMinutes);
+        openScheduleModal(taskToSchedule.id, (taskToSchedule.is_scheduled), startMinutes); 
     });
 
     function openScheduleModal(taskId, isEditingExistingSchedule = false, defaultStartTime = null) {
@@ -1062,20 +1070,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         modalTaskIdInput.value = task.id;
         modalTaskNameDisplay.textContent = escapeHTML(task.text);
-        const isActuallyScheduled = task.isScheduled || task.is_scheduled;
+        const isActuallyScheduled = task.is_scheduled; 
 
         if (isEditingExistingSchedule || isActuallyScheduled) { 
             editModalTitle.textContent = 'Edit Scheduled Task';
-            modalStartTimeInput.value = formatMinutesToHHMM(task.startTime); 
-            modalDurationInput.value = task.duration || 45; 
-            modalScheduleDescriptionInput.value = task.scheduleDescription || '';
+            modalStartTimeInput.value = formatMinutesToHHMM(task.start_time); 
+            modalDurationInput.value = task.duration || 45;                 
+            modalScheduleDescriptionInput.value = task.schedule_description || ''; 
             modalDeleteTaskButton.textContent = 'Unschedule';
             modalDeleteTaskButton.title = 'Remove this task from the schedule';
         } else {
             editModalTitle.textContent = 'Schedule Task';
             modalStartTimeInput.value = defaultStartTime !== null ? formatMinutesToHHMM(defaultStartTime) : '';
             modalDurationInput.value = task.duration || 45; 
-            modalScheduleDescriptionInput.value = task.scheduleDescription || '';
+            modalScheduleDescriptionInput.value = task.schedule_description || '';
             modalDeleteTaskButton.textContent = 'Cancel Scheduling';
             modalDeleteTaskButton.title = 'Cancel scheduling this task';
         }
@@ -1086,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleSaveScheduledTask() {
         const taskId = modalTaskIdInput.value;
-        const taskIndex = tasks.findIndex(t => t.id === taskId);
+        const taskIndex = tasks.findIndex(t => t.id === taskId); 
         if (taskIndex === -1) {
             displayFlashMessage(editTaskModal, "Task not found.", 'error'); return;
         }
@@ -1110,8 +1118,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 isScheduled: true 
             });
             if (result.success && result.updatedTask) {
-                 if (taskIndex !== -1) tasks[taskIndex] = result.updatedTask;
-                 else tasks.push(result.updatedTask); 
+                if (taskIndex !== -1) {
+                    tasks[taskIndex] = { ...tasks[taskIndex], ...result.updatedTask };
+                } else { 
+                    tasks.push(result.updatedTask);
+                }
+                                 
                 closeScheduleModal();
                 renderScheduleTimeline();
                 renderTasksForCurrentProject(); 
@@ -1129,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskIndex = tasks.findIndex(t => t.id === taskId);
         const task = tasks[taskIndex];
         
-        if (taskIndex === -1 || !(task.isScheduled || task.is_scheduled)) {
+        if (taskIndex === -1 || !(task.is_scheduled)) { 
             closeScheduleModal();
             return;
         }
@@ -1137,10 +1149,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const result = await apiRequest('unschedule_task', { taskId });
             if (result.success && result.updatedTask) {
-                if (taskIndex !== -1) tasks[taskIndex] = result.updatedTask; 
-                else tasks.push(result.updatedTask);
+                const updatedTaskIndex = tasks.findIndex(t => t.id === taskId);
+                if (updatedTaskIndex !== -1) {
+                     tasks[updatedTaskIndex] = { ...tasks[updatedTaskIndex], ...result.updatedTask };
+                } else {
+                    tasks.push(result.updatedTask); 
+                }
 
-                displayFlashMessage(document.body, `Task "${escapeHTML(task.text)}" unscheduled.`, 'success'); // Use original task text for message
+                displayFlashMessage(document.body, `Task "${escapeHTML(task.text)}" unscheduled.`, 'success'); 
                 closeScheduleModal();
                 renderScheduleTimeline();
                 renderTasksForCurrentProject(); 
@@ -1239,13 +1255,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let tasksFoundOverall = false;
 
         activeProjectsWithTasks.forEach(project => {
-            const projectTasks = tasks.filter(task => task.project_id === project.id && task.status === 'active'); // Use task.project_id
+            const projectTasks = tasks.filter(task => task.project_id === project.id && task.status === 'active'); 
             if (projectTasks.length > 0) {
                 tasksFoundOverall = true;
                 contentHtml += `<div class="project-task-group"><h4>${escapeHTML(project.name)}</h4><ul class="all-tasks-list">`;
                 projectTasks.sort((a, b) => new Date(a.createdAt || a.created_at || 0) - new Date(b.createdAt || b.created_at || 0));
                 projectTasks.forEach(task => {
-                    const isScheduled = task.isScheduled || task.is_scheduled;
+                    const isScheduled = task.is_scheduled; 
                     const taskClasses = isScheduled ? 'scheduled-in-list' : '';
                     contentHtml += `<li class="${taskClasses}"><span class="task-text-all">${escapeHTML(task.text)}</span></li>`;
                 });
